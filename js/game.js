@@ -317,11 +317,12 @@ class Game2048 {
 
         const gridElement = document.querySelector('.grid');
         
-        // 检测设备类型
+        // 改进的设备类型检测
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        // 检测是否是Safari浏览器
+        // 改进的Safari浏览器检测
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || 
-                        (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream);
+                        (/(iPhone|iPad|iPod).*AppleWebKit(?!.*Safari)/i.test(navigator.userAgent) ||
+                        (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream));
         
         // 为移动设备添加特殊标记
         if (isMobile) {
@@ -334,90 +335,126 @@ class Game2048 {
         let startX, startY;
         let hasMoved = false;
         let touchStartTime;
+        let isTouchLocked = false;
         
-        // 检测到触摸开始
+        // 优化的触摸开始处理
         const handleTouchStart = (e) => {
             if (this.isAnimating) return;
             
+            // 记录初始触摸位置
             const touch = e.touches[0];
             startX = touch.clientX;
             startY = touch.clientY;
             hasMoved = false;
             touchStartTime = new Date().getTime();
+            isTouchLocked = false;
             
-            // 添加触摸活跃状态
             gridElement.classList.add('touch-active');
         };
         
-        // 处理触摸移动
+        // 改进的触摸移动处理
         const handleTouchMove = (e) => {
-            if (!startX || !startY) return;
+            if (!startX || !startY || this.isAnimating || isTouchLocked) return;
             
             const touch = e.touches[0];
             const moveX = touch.clientX - startX;
             const moveY = touch.clientY - startY;
             
-            // 当检测到足够的移动距离时，标记为已移动
-            if (Math.abs(moveX) > 5 || Math.abs(moveY) > 5) {
+            // 如果是在游戏格子区域内的滑动，阻止默认行为
+            if (e.target.closest('.grid') || 
+                Math.abs(moveX) > 10 || Math.abs(moveY) > 10) {
+                e.preventDefault();
+            }
+            
+            // 降低检测阈值，提高灵敏度
+            if (Math.abs(moveX) > 3 || Math.abs(moveY) > 3) {
                 hasMoved = true;
-                
-                // 防止页面滑动干扰游戏操作
-                if (Math.abs(moveX) > Math.abs(moveY)) {
-                    e.preventDefault();
-                }
             }
         };
         
-        // 检测到触摸结束
+        // 优化的触摸结束处理
         const handleTouchEnd = (e) => {
-            // 移除触摸活跃状态
             gridElement.classList.remove('touch-active');
             
-            if (!startX || !startY || this.isAnimating) return;
+            if (!startX || !startY || this.isAnimating || isTouchLocked) return;
             
             const touchEndTime = new Date().getTime();
             const touchDuration = touchEndTime - touchStartTime;
             const touch = e.changedTouches[0];
             const deltaX = touch.clientX - startX;
             const deltaY = touch.clientY - startY;
-            const threshold = 10; // 降低滑动阈值提高响应性
+            const threshold = 5; // 降低阈值，提高响应灵敏度
             
             // 重置触摸开始位置
             startX = null;
             startY = null;
             
-            // 如果滑动距离太短或没有移动，则不处理
+            // 优化判断逻辑
             if ((Math.abs(deltaX) < threshold && Math.abs(deltaY) < threshold) || 
-                !hasMoved || touchDuration > 1000) return;
+                !hasMoved || touchDuration > 800) return;
+            
+            // 锁定触摸，防止多次触发
+            isTouchLocked = true;
             
             // 防抖，避免多次触发
             this.isAnimating = true;
             setTimeout(() => {
                 this.isAnimating = false;
+                isTouchLocked = false;
             }, 100);
             
-            // 判断滑动方向
+            // 更精确的滑动方向判断
             const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
             if (isHorizontal) {
-                // 水平滑动
                 this.move(deltaX > 0 ? 'ArrowRight' : 'ArrowLeft');
             } else {
-                // 垂直滑动
                 this.move(deltaY > 0 ? 'ArrowDown' : 'ArrowUp');
             }
         };
         
-        // 添加事件监听
-        if (isSafari) {
-            // Safari需要特殊处理
-            gridElement.addEventListener('touchstart', handleTouchStart, { passive: false });
-            gridElement.addEventListener('touchmove', handleTouchMove, { passive: false });
-            gridElement.addEventListener('touchend', handleTouchEnd, { passive: false });
-        } else {
-            // 其他浏览器
-            gridElement.addEventListener('touchstart', handleTouchStart, { passive: true });
-            gridElement.addEventListener('touchmove', handleTouchMove, { passive: false });
-            gridElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+        // 触摸事件取消处理
+        const handleTouchCancel = () => {
+            startX = null;
+            startY = null;
+            hasMoved = false;
+            isTouchLocked = false;
+            gridElement.classList.remove('touch-active');
+        };
+        
+        // 修改事件绑定方式，确保在所有移动设备上都能正常工作
+        gridElement.addEventListener('touchstart', handleTouchStart, { passive: true });
+        gridElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+        gridElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+        gridElement.addEventListener('touchcancel', handleTouchCancel, { passive: true });
+        
+        // 对于iOS Safari特别处理，防止页面弹性滚动
+        if (isSafari && isMobile) {
+            // 仅对游戏区域应用触摸限制，而不是整个文档
+            gridElement.style.webkitOverflowScrolling = 'touch';
+            gridElement.style.overscrollBehavior = 'none';
+            
+            // 添加额外的touchmove监听器来阻止游戏区域的默认滚动
+            gridElement.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+            
+            // 动态调整视窗元数据，确保正确渲染
+            const viewport = document.querySelector('meta[name="viewport"]');
+            if (viewport) {
+                viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+            } else {
+                const metaTag = document.createElement('meta');
+                metaTag.name = 'viewport';
+                metaTag.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+                document.getElementsByTagName('head')[0].appendChild(metaTag);
+            }
+            
+            // 防止页面整体滚动问题
+            document.addEventListener('touchmove', (e) => {
+                if (e.target.closest('.grid')) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
         }
         
         // 处理页面可见性变化

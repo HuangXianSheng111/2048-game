@@ -317,8 +317,23 @@ class Game2048 {
 
         const gridElement = document.querySelector('.grid');
         
-        // 简化的触摸事件处理，适用于所有浏览器包括Safari
+        // 检测设备类型
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        // 检测是否是Safari浏览器
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || 
+                        (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream);
+        
+        // 为移动设备添加特殊标记
+        if (isMobile) {
+            document.body.classList.add('mobile-device');
+            if (isSafari) {
+                document.body.classList.add('safari-browser');
+            }
+        }
+        
         let startX, startY;
+        let hasMoved = false;
+        let touchStartTime;
         
         // 检测到触摸开始
         const handleTouchStart = (e) => {
@@ -327,23 +342,53 @@ class Game2048 {
             const touch = e.touches[0];
             startX = touch.clientX;
             startY = touch.clientY;
+            hasMoved = false;
+            touchStartTime = new Date().getTime();
+            
+            // 添加触摸活跃状态
+            gridElement.classList.add('touch-active');
+        };
+        
+        // 处理触摸移动
+        const handleTouchMove = (e) => {
+            if (!startX || !startY) return;
+            
+            const touch = e.touches[0];
+            const moveX = touch.clientX - startX;
+            const moveY = touch.clientY - startY;
+            
+            // 当检测到足够的移动距离时，标记为已移动
+            if (Math.abs(moveX) > 5 || Math.abs(moveY) > 5) {
+                hasMoved = true;
+                
+                // 防止页面滑动干扰游戏操作
+                if (Math.abs(moveX) > Math.abs(moveY)) {
+                    e.preventDefault();
+                }
+            }
         };
         
         // 检测到触摸结束
         const handleTouchEnd = (e) => {
+            // 移除触摸活跃状态
+            gridElement.classList.remove('touch-active');
+            
             if (!startX || !startY || this.isAnimating) return;
             
+            const touchEndTime = new Date().getTime();
+            const touchDuration = touchEndTime - touchStartTime;
             const touch = e.changedTouches[0];
             const deltaX = touch.clientX - startX;
             const deltaY = touch.clientY - startY;
-            const threshold = 15; // 降低滑动阈值提高响应性
+            const threshold = 10; // 降低滑动阈值提高响应性
             
             // 重置触摸开始位置
             startX = null;
             startY = null;
             
-            // 如果滑动距离太短，就不处理
-            if (Math.abs(deltaX) < threshold && Math.abs(deltaY) < threshold) return;
+            // 如果滑动距离太短或没有移动，则不处理
+            if ((Math.abs(deltaX) < threshold && Math.abs(deltaY) < threshold) || 
+                !hasMoved || touchDuration > 1000) return;
             
             // 防抖，避免多次触发
             this.isAnimating = true;
@@ -362,15 +407,18 @@ class Game2048 {
             }
         };
         
-        // 添加事件监听，使用尽可能简单的方式
-        gridElement.addEventListener('touchstart', handleTouchStart, { passive: true });
-        gridElement.addEventListener('touchend', handleTouchEnd, { passive: true });
-        
-        // 这个事件只是为了防止iOS的回弹效果，但不阻止默认行为
-        gridElement.addEventListener('touchmove', (e) => {
-            // 不阻止默认行为，只是消耗这个事件
-            // 保持简单，以确保Safari兼容性
-        }, { passive: true });
+        // 添加事件监听
+        if (isSafari) {
+            // Safari需要特殊处理
+            gridElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+            gridElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+            gridElement.addEventListener('touchend', handleTouchEnd, { passive: false });
+        } else {
+            // 其他浏览器
+            gridElement.addEventListener('touchstart', handleTouchStart, { passive: true });
+            gridElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+            gridElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+        }
         
         // 处理页面可见性变化
         document.addEventListener('visibilitychange', () => {

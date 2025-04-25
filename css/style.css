@@ -5,7 +5,7 @@
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
-    touch-action: none;
+    touch-action: manipulation; /* 改为manipulation，允许滚动和缩放但禁止双击缩放 */
 }
 
 html, body {
@@ -125,7 +125,6 @@ h1::after {
     position: relative;
     box-shadow: 0 8px 16px rgba(0,0,0,0.1);
     -webkit-overflow-scrolling: touch;
-    touch-action: none;
 }
 
 .grid-cell {
@@ -349,6 +348,13 @@ h1::after {
     }
 }
 
+/* 触摸反馈效果 */
+.touch-active {
+    opacity: 0.95;
+    transform: scale(0.98);
+    transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
 @supports (-webkit-touch-callout: none) {
     html, body {
         /* 不强制fixed定位，以避免iOS Safari上的滚动问题 */
@@ -360,8 +366,7 @@ h1::after {
         /* 基本触摸行为优化 */
         -webkit-user-select: none;
         -webkit-touch-callout: none;
-        /* 这个属性在Safari上可能导致触摸问题，移除它 */
-        /* touch-action: none; */
+        will-change: transform; /* 提高渲染性能 */
     }
     
     #newGame {
@@ -428,6 +433,16 @@ h1::after {
     .grid-cell:not(:empty) {
         transform: translateZ(0);
     }
+}
+
+/* 为移动设备优化触摸交互 */
+.mobile-device .grid {
+    cursor: pointer;
+}
+
+.safari-browser .grid {
+    /* Safari特定的额外优化 */
+    z-index: 1;
 }
 
 /* 加载动画 */

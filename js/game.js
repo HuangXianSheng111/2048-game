@@ -321,20 +321,24 @@ class Game2048 {
         let touchEndTime;
         
         gridElement.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 1 || this.isAnimating) return;
+            if (e.touches.length > 1) return;
             
             touchStartTime = new Date().getTime();
             this.touchStartX = e.touches[0].clientX;
             this.touchStartY = e.touches[0].clientY;
-            e.preventDefault(); // 防止默认行为，如滚动、缩放
-        }, { passive: false });
+            // 不阻止默认行为，可能导致滑动问题
+        }, { passive: true });
 
         gridElement.addEventListener('touchmove', (e) => {
-            e.preventDefault(); // 防止滚动
+            // 不阻止所有滑动，只在必要时阻止
+            if (Math.abs(e.touches[0].clientX - this.touchStartX) > 10 || 
+                Math.abs(e.touches[0].clientY - this.touchStartY) > 10) {
+                e.preventDefault();
+            }
         }, { passive: false });
 
         gridElement.addEventListener('touchend', (e) => {
-            if (!this.touchStartX || !this.touchStartY || this.isAnimating) return;
+            if (!this.touchStartX || !this.touchStartY) return;
             
             touchEndTime = new Date().getTime();
             const touchDuration = touchEndTime - touchStartTime;
@@ -344,20 +348,18 @@ class Game2048 {
 
             const deltaX = touchEndX - this.touchStartX;
             const deltaY = touchEndY - this.touchStartY;
-            const minSwipeDistance = 30;
+            const minSwipeDistance = 20; // 降低滑动阈值，提高响应性
             
-            // 如果滑动太短或太慢，不响应
-            if (Math.abs(deltaX) < minSwipeDistance && Math.abs(deltaY) < minSwipeDistance || 
-                touchDuration > 500) { // 限制手势时长，避免误触
-                e.preventDefault();
+            // 如果滑动太短，不响应，但放宽条件
+            if (Math.abs(deltaX) < minSwipeDistance && Math.abs(deltaY) < minSwipeDistance) {
                 return;
             }
 
-            // 防抖，避免重复触发
+            // 防抖时间减少，提高响应速度
             this.isAnimating = true;
             setTimeout(() => {
                 this.isAnimating = false;
-            }, 150);
+            }, 100);
 
             if (Math.abs(deltaX) > Math.abs(deltaY)) {
                 if (deltaX > 0) {
@@ -375,12 +377,13 @@ class Game2048 {
 
             this.touchStartX = null;
             this.touchStartY = null;
-            e.preventDefault(); // 阻止任何默认行为
-        }, { passive: false });
+        });
 
-        // 双击缩放预防
+        // 更温和地处理缩放手势
         document.addEventListener('gesturestart', (e) => {
-            e.preventDefault();
+            if (e.target.closest('.grid')) {
+                e.preventDefault();
+            }
         }, { passive: false });
         
         document.addEventListener('gesturechange', (e) => {

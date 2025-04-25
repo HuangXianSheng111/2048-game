@@ -316,9 +316,28 @@ class Game2048 {
         });
 
         const gridElement = document.querySelector('.grid');
+        
+        // 检测是否是Safari浏览器
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        // 防止Safari的弹性滚动行为
+        if (isSafari) {
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+            document.body.style.height = '100%';
+        }
 
         let touchStartTime;
         let touchEndTime;
+        let hasMoved = false;
+        
+        // 使用touchforcechange事件检测Safari上的3D Touch
+        if (isSafari) {
+            gridElement.addEventListener('touchforcechange', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+        }
         
         gridElement.addEventListener('touchstart', (e) => {
             if (e.touches.length > 1) return;
@@ -326,13 +345,26 @@ class Game2048 {
             touchStartTime = new Date().getTime();
             this.touchStartX = e.touches[0].clientX;
             this.touchStartY = e.touches[0].clientY;
-            // 不阻止默认行为，可能导致滑动问题
-        }, { passive: true });
+            hasMoved = false;
+            
+            // Safari需要在touchstart中阻止默认行为
+            if (isSafari) {
+                e.preventDefault();
+            }
+        }, isSafari ? { passive: false } : { passive: true });
 
         gridElement.addEventListener('touchmove', (e) => {
-            // 不阻止所有滑动，只在必要时阻止
-            if (Math.abs(e.touches[0].clientX - this.touchStartX) > 10 || 
-                Math.abs(e.touches[0].clientY - this.touchStartY) > 10) {
+            if (!this.touchStartX || !this.touchStartY) return;
+            
+            const touchMoveX = e.touches[0].clientX;
+            const touchMoveY = e.touches[0].clientY;
+            
+            const deltaX = touchMoveX - this.touchStartX;
+            const deltaY = touchMoveY - this.touchStartY;
+            
+            // 判断是否移动足够距离
+            if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+                hasMoved = true;
                 e.preventDefault();
             }
         }, { passive: false });
@@ -348,14 +380,17 @@ class Game2048 {
 
             const deltaX = touchEndX - this.touchStartX;
             const deltaY = touchEndY - this.touchStartY;
-            const minSwipeDistance = 20; // 降低滑动阈值，提高响应性
             
-            // 如果滑动太短，不响应，但放宽条件
-            if (Math.abs(deltaX) < minSwipeDistance && Math.abs(deltaY) < minSwipeDistance) {
+            // Safari对较短滑动的响应更敏感
+            const minSwipeDistance = isSafari ? 15 : 20;
+            
+            // 如果滑动太短或持续时间过长，不响应
+            if ((Math.abs(deltaX) < minSwipeDistance && Math.abs(deltaY) < minSwipeDistance) || 
+                touchDuration > 1000 || !hasMoved) {
                 return;
             }
 
-            // 防抖时间减少，提高响应速度
+            // 防抖
             this.isAnimating = true;
             setTimeout(() => {
                 this.isAnimating = false;
@@ -377,22 +412,32 @@ class Game2048 {
 
             this.touchStartX = null;
             this.touchStartY = null;
-        });
-
-        // 更温和地处理缩放手势
-        document.addEventListener('gesturestart', (e) => {
-            if (e.target.closest('.grid')) {
+            
+            if (isSafari) {
                 e.preventDefault();
             }
-        }, { passive: false });
-        
-        document.addEventListener('gesturechange', (e) => {
+        }, isSafari ? { passive: false } : { passive: true });
+
+        // 更完整的手势处理
+        const preventGesture = (e) => {
             e.preventDefault();
-        }, { passive: false });
+        };
         
-        document.addEventListener('gestureend', (e) => {
-            e.preventDefault();
-        }, { passive: false });
+        if (typeof document.documentElement.style.touchAction === 'undefined') {
+            // 老版本浏览器需要这些处理
+            document.addEventListener('gesturestart', preventGesture, { passive: false });
+            document.addEventListener('gesturechange', preventGesture, { passive: false });
+            document.addEventListener('gestureend', preventGesture, { passive: false });
+        }
+
+        // 专门为Safari添加指针事件支持
+        if (isSafari && window.PointerEvent) {
+            gridElement.addEventListener('pointerdown', (e) => {
+                if (e.pointerType === 'touch') {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        }
 
         // 处理页面可见性变化
         document.addEventListener('visibilitychange', () => {

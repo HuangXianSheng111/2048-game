@@ -317,128 +317,61 @@ class Game2048 {
 
         const gridElement = document.querySelector('.grid');
         
-        // 检测是否是Safari浏览器
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        // 简化的触摸事件处理，适用于所有浏览器包括Safari
+        let startX, startY;
         
-        // 防止Safari的弹性滚动行为
-        if (isSafari) {
-            document.body.style.overflow = 'hidden';
-            document.body.style.position = 'fixed';
-            document.body.style.width = '100%';
-            document.body.style.height = '100%';
-        }
-
-        let touchStartTime;
-        let touchEndTime;
-        let hasMoved = false;
+        // 检测到触摸开始
+        const handleTouchStart = (e) => {
+            if (this.isAnimating) return;
+            
+            const touch = e.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+        };
         
-        // 使用touchforcechange事件检测Safari上的3D Touch
-        if (isSafari) {
-            gridElement.addEventListener('touchforcechange', (e) => {
-                e.preventDefault();
-            }, { passive: false });
-        }
-        
-        gridElement.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 1) return;
+        // 检测到触摸结束
+        const handleTouchEnd = (e) => {
+            if (!startX || !startY || this.isAnimating) return;
             
-            touchStartTime = new Date().getTime();
-            this.touchStartX = e.touches[0].clientX;
-            this.touchStartY = e.touches[0].clientY;
-            hasMoved = false;
+            const touch = e.changedTouches[0];
+            const deltaX = touch.clientX - startX;
+            const deltaY = touch.clientY - startY;
+            const threshold = 15; // 降低滑动阈值提高响应性
             
-            // Safari需要在touchstart中阻止默认行为
-            if (isSafari) {
-                e.preventDefault();
-            }
-        }, isSafari ? { passive: false } : { passive: true });
-
-        gridElement.addEventListener('touchmove', (e) => {
-            if (!this.touchStartX || !this.touchStartY) return;
+            // 重置触摸开始位置
+            startX = null;
+            startY = null;
             
-            const touchMoveX = e.touches[0].clientX;
-            const touchMoveY = e.touches[0].clientY;
+            // 如果滑动距离太短，就不处理
+            if (Math.abs(deltaX) < threshold && Math.abs(deltaY) < threshold) return;
             
-            const deltaX = touchMoveX - this.touchStartX;
-            const deltaY = touchMoveY - this.touchStartY;
-            
-            // 判断是否移动足够距离
-            if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
-                hasMoved = true;
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        gridElement.addEventListener('touchend', (e) => {
-            if (!this.touchStartX || !this.touchStartY) return;
-            
-            touchEndTime = new Date().getTime();
-            const touchDuration = touchEndTime - touchStartTime;
-
-            const touchEndX = e.changedTouches[0].clientX;
-            const touchEndY = e.changedTouches[0].clientY;
-
-            const deltaX = touchEndX - this.touchStartX;
-            const deltaY = touchEndY - this.touchStartY;
-            
-            // Safari对较短滑动的响应更敏感
-            const minSwipeDistance = isSafari ? 15 : 20;
-            
-            // 如果滑动太短或持续时间过长，不响应
-            if ((Math.abs(deltaX) < minSwipeDistance && Math.abs(deltaY) < minSwipeDistance) || 
-                touchDuration > 1000 || !hasMoved) {
-                return;
-            }
-
-            // 防抖
+            // 防抖，避免多次触发
             this.isAnimating = true;
             setTimeout(() => {
                 this.isAnimating = false;
             }, 100);
-
-            if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                if (deltaX > 0) {
-                    this.move('ArrowRight');
-                } else {
-                    this.move('ArrowLeft');
-                }
-            } else {
-                if (deltaY > 0) {
-                    this.move('ArrowDown');
-                } else {
-                    this.move('ArrowUp');
-                }
-            }
-
-            this.touchStartX = null;
-            this.touchStartY = null;
             
-            if (isSafari) {
-                e.preventDefault();
+            // 判断滑动方向
+            const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+            if (isHorizontal) {
+                // 水平滑动
+                this.move(deltaX > 0 ? 'ArrowRight' : 'ArrowLeft');
+            } else {
+                // 垂直滑动
+                this.move(deltaY > 0 ? 'ArrowDown' : 'ArrowUp');
             }
-        }, isSafari ? { passive: false } : { passive: true });
-
-        // 更完整的手势处理
-        const preventGesture = (e) => {
-            e.preventDefault();
         };
         
-        if (typeof document.documentElement.style.touchAction === 'undefined') {
-            // 老版本浏览器需要这些处理
-            document.addEventListener('gesturestart', preventGesture, { passive: false });
-            document.addEventListener('gesturechange', preventGesture, { passive: false });
-            document.addEventListener('gestureend', preventGesture, { passive: false });
-        }
-
-        // 专门为Safari添加指针事件支持
-        if (isSafari && window.PointerEvent) {
-            gridElement.addEventListener('pointerdown', (e) => {
-                if (e.pointerType === 'touch') {
-                    e.preventDefault();
-                }
-            }, { passive: false });
-        }
-
+        // 添加事件监听，使用尽可能简单的方式
+        gridElement.addEventListener('touchstart', handleTouchStart, { passive: true });
+        gridElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+        
+        // 这个事件只是为了防止iOS的回弹效果，但不阻止默认行为
+        gridElement.addEventListener('touchmove', (e) => {
+            // 不阻止默认行为，只是消耗这个事件
+            // 保持简单，以确保Safari兼容性
+        }, { passive: true });
+        
         // 处理页面可见性变化
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {

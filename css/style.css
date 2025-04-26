@@ -429,6 +429,21 @@ h1::after {
     .tile-1024, .tile-2048 {
         font-size: 20px;
     }
+
+    .version {
+        font-size: 14px;
+    }
+}
+
+/* 版本号样式 */
+.version {
+    font-size: 16px;
+    color: #bbada0;
+    font-weight: normal;
+    vertical-align: middle;
+    margin-left: 8px;
+    opacity: 0.8;
+    letter-spacing: 1px;
 }
 
 /* 处理iPhone刘海屏 */

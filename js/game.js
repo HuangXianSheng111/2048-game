@@ -314,9 +314,10 @@ class Game2048 {
 
     merge(line) {
         // 第一步：移除所有空白格子，将数字紧凑在一起
+        // 这确保所有数字首先向移动方向尽可能移动
         const nonEmptyTiles = line.filter(val => val !== 0);
         
-        // 第二步：合并相邻的相同数字
+        // 第二步：合并相邻的相同数字（从移动方向开始）
         const result = [];
         let i = 0;
         

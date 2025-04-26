@@ -165,51 +165,83 @@ class Game2048 {
         for (let i = 0; i < 4; i++) {
             const row = this.getRow(i);
             const originalRow = [...row];
+            
+            // 关键改进：检查原始行和最终结果的差异，而不仅是单个格子
+            const hasSameValues = (arr1, arr2) => {
+                if (arr1.length !== arr2.length) return false;
+                return arr1.every((val, index) => val === arr2[index]);
+            };
+            
+            // 应用方向变换
             const transformedRow = transform([...row]);
+            
+            // 合并操作
             const mergedRow = this.merge(transformedRow);
+            
+            // 反向变换回原始方向
             const finalRow = transform === (row => row.reverse()) 
                 ? mergedRow.reverse() 
                 : mergedRow;
             
+            // 检查整行是否有变化
+            if (!hasSameValues(row, finalRow)) {
+                moved = true;
+            }
+            
+            // 更新网格并应用动画效果
             for (let j = 0; j < 4; j++) {
-                if (this.grid[i * 4 + j] !== finalRow[j]) {
-                    moved = true;
-                    
-                    // 跟踪变化以便动画
-                    const oldValue = this.grid[i * 4 + j];
-                    const newValue = finalRow[j];
-                    const oldIndex = i * 4 + j;
+                const cellIndex = i * 4 + j;
+                const oldValue = this.grid[cellIndex];
+                const newValue = finalRow[j];
+                
+                if (oldValue !== newValue) {
                     const cells = document.querySelectorAll('.grid-cell');
                     
                     // 更新网格值
-                    this.grid[i * 4 + j] = finalRow[j];
+                    this.grid[cellIndex] = newValue;
                     
                     // 如果是合并结果，添加增强的合并动画
-                    if (newValue !== 0 && newValue !== oldValue) {
+                    if (newValue !== 0 && newValue !== oldValue && oldValue !== 0) {
                         const animPromise = new Promise(resolve => {
                             setTimeout(() => {
-                                const cell = cells[i * 4 + j];
+                                const cell = cells[cellIndex];
                                 cell.classList.add('merged');
                                 
-                                if (newValue > oldValue && oldValue !== 0) {
-                                    // 增强的分数弹出
-                                    const scorePopup = document.createElement('div');
-                                    scorePopup.className = 'score-popup';
-                                    scorePopup.textContent = '+' + newValue;
-                                    cell.appendChild(scorePopup);
-                                    
-                                    // 为合并添加粒子效果
-                                    this.createMergeParticles(cell, newValue);
-                                    
-                                    setTimeout(() => {
-                                        scorePopup.remove();
-                                        resolve();
-                                    }, 500);
-                                } else {
+                                // 增强的分数弹出
+                                const scorePopup = document.createElement('div');
+                                scorePopup.className = 'score-popup';
+                                scorePopup.textContent = '+' + newValue;
+                                cell.appendChild(scorePopup);
+                                
+                                // 为合并添加粒子效果
+                                this.createMergeParticles(cell, newValue);
+                                
+                                setTimeout(() => {
+                                    scorePopup.remove();
                                     resolve();
-                                }
+                                }, 500);
                                 
                                 setTimeout(() => cell.classList.remove('merged'), 300);
+                            }, 50);
+                        });
+                        
+                        allAnimationPromises.push(animPromise);
+                    }
+                    // 为移动的瓦片添加移动动画
+                    else if (newValue !== 0 && oldValue === 0) {
+                        // 这里可以添加新瓦片出现的动画
+                    }
+                    // 为移动但未合并的瓦片添加滑动动画
+                    else if (newValue !== 0) {
+                        const animPromise = new Promise(resolve => {
+                            setTimeout(() => {
+                                const cell = cells[cellIndex];
+                                cell.classList.add('slide');
+                                
+                                setTimeout(() => {
+                                    cell.classList.remove('slide');
+                                    resolve();
+                                }, 200);
                             }, 50);
                         });
                         
@@ -224,6 +256,8 @@ class Game2048 {
             Promise.all(allAnimationPromises).then(() => {
                 this.isAnimating = false;
             });
+        } else {
+            this.isAnimating = false;
         }
         
         return moved;
@@ -236,50 +270,83 @@ class Game2048 {
         for (let j = 0; j < 4; j++) {
             const col = this.getColumn(j);
             const originalCol = [...col];
+            
+            // 关键改进：检查原始列和最终结果的差异，而不仅是单个格子
+            const hasSameValues = (arr1, arr2) => {
+                if (arr1.length !== arr2.length) return false;
+                return arr1.every((val, index) => val === arr2[index]);
+            };
+            
+            // 应用方向变换
             const transformedCol = transform([...col]);
+            
+            // 合并操作
             const mergedCol = this.merge(transformedCol);
+            
+            // 反向变换回原始方向
             const finalCol = transform === (col => col.reverse()) 
                 ? mergedCol.reverse() 
                 : mergedCol;
             
+            // 检查整列是否有变化
+            if (!hasSameValues(col, finalCol)) {
+                moved = true;
+            }
+            
+            // 更新网格并应用动画效果
             for (let i = 0; i < 4; i++) {
-                if (this.grid[i * 4 + j] !== finalCol[i]) {
-                    moved = true;
-                    
-                    // 跟踪变化以便动画
-                    const oldValue = this.grid[i * 4 + j];
-                    const newValue = finalCol[i];
+                const cellIndex = i * 4 + j;
+                const oldValue = this.grid[cellIndex];
+                const newValue = finalCol[i];
+                
+                if (oldValue !== newValue) {
                     const cells = document.querySelectorAll('.grid-cell');
                     
                     // 更新网格值
-                    this.grid[i * 4 + j] = finalCol[i];
+                    this.grid[cellIndex] = newValue;
                     
                     // 如果是合并结果，添加增强的合并动画
-                    if (newValue !== 0 && newValue !== oldValue) {
+                    if (newValue !== 0 && newValue !== oldValue && oldValue !== 0) {
                         const animPromise = new Promise(resolve => {
                             setTimeout(() => {
-                                const cell = cells[i * 4 + j];
+                                const cell = cells[cellIndex];
                                 cell.classList.add('merged');
                                 
-                                if (newValue > oldValue && oldValue !== 0) {
-                                    // 增强的分数弹出
-                                    const scorePopup = document.createElement('div');
-                                    scorePopup.className = 'score-popup';
-                                    scorePopup.textContent = '+' + newValue;
-                                    cell.appendChild(scorePopup);
-                                    
-                                    // 为合并添加粒子效果
-                                    this.createMergeParticles(cell, newValue);
-                                    
-                                    setTimeout(() => {
-                                        scorePopup.remove();
-                                        resolve();
-                                    }, 500);
-                                } else {
+                                // 增强的分数弹出
+                                const scorePopup = document.createElement('div');
+                                scorePopup.className = 'score-popup';
+                                scorePopup.textContent = '+' + newValue;
+                                cell.appendChild(scorePopup);
+                                
+                                // 为合并添加粒子效果
+                                this.createMergeParticles(cell, newValue);
+                                
+                                setTimeout(() => {
+                                    scorePopup.remove();
                                     resolve();
-                                }
+                                }, 500);
                                 
                                 setTimeout(() => cell.classList.remove('merged'), 300);
+                            }, 50);
+                        });
+                        
+                        allAnimationPromises.push(animPromise);
+                    }
+                    // 为移动的瓦片添加移动动画
+                    else if (newValue !== 0 && oldValue === 0) {
+                        // 这里可以添加新瓦片出现的动画
+                    }
+                    // 为移动但未合并的瓦片添加滑动动画
+                    else if (newValue !== 0) {
+                        const animPromise = new Promise(resolve => {
+                            setTimeout(() => {
+                                const cell = cells[cellIndex];
+                                cell.classList.add('slide');
+                                
+                                setTimeout(() => {
+                                    cell.classList.remove('slide');
+                                    resolve();
+                                }, 200);
                             }, 50);
                         });
                         
@@ -294,6 +361,8 @@ class Game2048 {
             Promise.all(allAnimationPromises).then(() => {
                 this.isAnimating = false;
             });
+        } else {
+            this.isAnimating = false;
         }
         
         return moved;

@@ -166,25 +166,20 @@ class Game2048 {
             const row = this.getRow(i);
             const originalRow = [...row];
             
-            // 关键改进：检查原始行和最终结果的差异，而不仅是单个格子
-            const hasSameValues = (arr1, arr2) => {
-                if (arr1.length !== arr2.length) return false;
-                return arr1.every((val, index) => val === arr2[index]);
-            };
-            
-            // 应用方向变换
+            // 应用方向变换（用于右移时反转数组）
             const transformedRow = transform([...row]);
             
-            // 合并操作
-            const mergedRow = this.merge(transformedRow);
+            // 执行移动和合并操作
+            const mergedRow = this.mergeAndCompress(transformedRow);
             
             // 反向变换回原始方向
             const finalRow = transform === (row => row.reverse()) 
                 ? mergedRow.reverse() 
                 : mergedRow;
             
-            // 检查整行是否有变化
-            if (!hasSameValues(row, finalRow)) {
+            // 检查是否有变化
+            const hasChanged = !this.arraysEqual(originalRow, finalRow);
+            if (hasChanged) {
                 moved = true;
             }
             
@@ -200,20 +195,20 @@ class Game2048 {
                     // 更新网格值
                     this.grid[cellIndex] = newValue;
                     
-                    // 如果是合并结果，添加增强的合并动画
+                    // 如果是合并结果，添加合并动画
                     if (newValue !== 0 && newValue !== oldValue && oldValue !== 0) {
                         const animPromise = new Promise(resolve => {
                             setTimeout(() => {
                                 const cell = cells[cellIndex];
                                 cell.classList.add('merged');
                                 
-                                // 增强的分数弹出
+                                // 分数弹出
                                 const scorePopup = document.createElement('div');
                                 scorePopup.className = 'score-popup';
                                 scorePopup.textContent = '+' + newValue;
                                 cell.appendChild(scorePopup);
                                 
-                                // 为合并添加粒子效果
+                                // 粒子效果
                                 this.createMergeParticles(cell, newValue);
                                 
                                 setTimeout(() => {
@@ -227,11 +222,7 @@ class Game2048 {
                         
                         allAnimationPromises.push(animPromise);
                     }
-                    // 为移动的瓦片添加移动动画
-                    else if (newValue !== 0 && oldValue === 0) {
-                        // 这里可以添加新瓦片出现的动画
-                    }
-                    // 为移动但未合并的瓦片添加滑动动画
+                    // 为移动添加滑动动画
                     else if (newValue !== 0) {
                         const animPromise = new Promise(resolve => {
                             setTimeout(() => {
@@ -271,25 +262,20 @@ class Game2048 {
             const col = this.getColumn(j);
             const originalCol = [...col];
             
-            // 关键改进：检查原始列和最终结果的差异，而不仅是单个格子
-            const hasSameValues = (arr1, arr2) => {
-                if (arr1.length !== arr2.length) return false;
-                return arr1.every((val, index) => val === arr2[index]);
-            };
-            
-            // 应用方向变换
+            // 应用方向变换（用于下移时反转数组）
             const transformedCol = transform([...col]);
             
-            // 合并操作
-            const mergedCol = this.merge(transformedCol);
+            // 执行移动和合并操作
+            const mergedCol = this.mergeAndCompress(transformedCol);
             
             // 反向变换回原始方向
             const finalCol = transform === (col => col.reverse()) 
                 ? mergedCol.reverse() 
                 : mergedCol;
             
-            // 检查整列是否有变化
-            if (!hasSameValues(col, finalCol)) {
+            // 检查是否有变化
+            const hasChanged = !this.arraysEqual(originalCol, finalCol);
+            if (hasChanged) {
                 moved = true;
             }
             
@@ -305,20 +291,20 @@ class Game2048 {
                     // 更新网格值
                     this.grid[cellIndex] = newValue;
                     
-                    // 如果是合并结果，添加增强的合并动画
+                    // 如果是合并结果，添加合并动画
                     if (newValue !== 0 && newValue !== oldValue && oldValue !== 0) {
                         const animPromise = new Promise(resolve => {
                             setTimeout(() => {
                                 const cell = cells[cellIndex];
                                 cell.classList.add('merged');
                                 
-                                // 增强的分数弹出
+                                // 分数弹出
                                 const scorePopup = document.createElement('div');
                                 scorePopup.className = 'score-popup';
                                 scorePopup.textContent = '+' + newValue;
                                 cell.appendChild(scorePopup);
                                 
-                                // 为合并添加粒子效果
+                                // 粒子效果
                                 this.createMergeParticles(cell, newValue);
                                 
                                 setTimeout(() => {
@@ -332,11 +318,7 @@ class Game2048 {
                         
                         allAnimationPromises.push(animPromise);
                     }
-                    // 为移动的瓦片添加移动动画
-                    else if (newValue !== 0 && oldValue === 0) {
-                        // 这里可以添加新瓦片出现的动画
-                    }
-                    // 为移动但未合并的瓦片添加滑动动画
+                    // 为移动添加滑动动画
                     else if (newValue !== 0) {
                         const animPromise = new Promise(resolve => {
                             setTimeout(() => {
@@ -367,6 +349,48 @@ class Game2048 {
         
         return moved;
     }
+    
+    // 新增: 辅助函数比较两个数组是否相等
+    arraysEqual(arr1, arr2) {
+        if (arr1.length !== arr2.length) return false;
+        for (let i = 0; i < arr1.length; i++) {
+            if (arr1[i] !== arr2[i]) return false;
+        }
+        return true;
+    }
+    
+    // 关键修复: 彻底重写mergeAndCompress函数，确保数字正确移动到边界
+    mergeAndCompress(line) {
+        // 步骤1：移除所有零，并将非零数字向前压缩（向移动方向靠拢）
+        let nonZeros = line.filter(val => val !== 0);
+        
+        // 步骤2：合并相邻的相同数字
+        const result = [];
+        let i = 0;
+        
+        while (i < nonZeros.length) {
+            // 如果当前数字与下一个数字相同，则合并
+            if (i + 1 < nonZeros.length && nonZeros[i] === nonZeros[i + 1]) {
+                const mergedValue = nonZeros[i] * 2;
+                result.push(mergedValue);
+                this.score += mergedValue;
+                document.getElementById('score').textContent = this.score;
+                this.checkAchievement(mergedValue);
+                i += 2; // 跳过已合并的两个数字
+            } else {
+                // 不能合并，保留原数字
+                result.push(nonZeros[i]);
+                i++;
+            }
+        }
+        
+        // 步骤3：填充剩余位置为0（确保数字都在边界一侧）
+        while (result.length < 4) {
+            result.push(0);
+        }
+        
+        return result;
+    }
 
     getRow(index) {
         return this.grid.slice(index * 4, (index + 1) * 4);
@@ -379,39 +403,6 @@ class Game2048 {
             this.grid[index + 8],
             this.grid[index + 12]
         ];
-    }
-
-    merge(line) {
-        // 第一步：移除所有空白格子，将数字紧凑在一起
-        // 这确保所有数字首先向移动方向尽可能移动
-        const nonEmptyTiles = line.filter(val => val !== 0);
-        
-        // 第二步：合并相邻的相同数字（从移动方向开始）
-        const result = [];
-        let i = 0;
-        
-        while (i < nonEmptyTiles.length) {
-            // 如果当前数字和下一个数字相同，则合并
-            if (i + 1 < nonEmptyTiles.length && nonEmptyTiles[i] === nonEmptyTiles[i + 1]) {
-                const mergedValue = nonEmptyTiles[i] * 2;
-                result.push(mergedValue);
-                this.score += mergedValue;
-                document.getElementById('score').textContent = this.score;
-                this.checkAchievement(mergedValue);
-                i += 2; // 跳过已经合并的两个数字
-            } else {
-                // 如果不能合并，则保持原数字
-                result.push(nonEmptyTiles[i]);
-                i++;
-            }
-        }
-        
-        // 第三步：填充剩余的空白位置
-        while (result.length < 4) {
-            result.push(0);
-        }
-        
-        return result;
     }
 
     hasWon() {

@@ -313,24 +313,30 @@ class Game2048 {
     }
 
     merge(line) {
-        const merged = line.filter(val => val !== 0);
+        // 第一步：移除所有空白格子，将数字紧凑在一起
+        const nonEmptyTiles = line.filter(val => val !== 0);
+        
+        // 第二步：合并相邻的相同数字
         const result = [];
         let i = 0;
         
-        while (i < merged.length) {
-            if (i + 1 < merged.length && merged[i] === merged[i + 1]) {
-                const mergedValue = merged[i] * 2;
+        while (i < nonEmptyTiles.length) {
+            // 如果当前数字和下一个数字相同，则合并
+            if (i + 1 < nonEmptyTiles.length && nonEmptyTiles[i] === nonEmptyTiles[i + 1]) {
+                const mergedValue = nonEmptyTiles[i] * 2;
                 result.push(mergedValue);
                 this.score += mergedValue;
                 document.getElementById('score').textContent = this.score;
                 this.checkAchievement(mergedValue);
-                i += 2;
+                i += 2; // 跳过已经合并的两个数字
             } else {
-                result.push(merged[i]);
+                // 如果不能合并，则保持原数字
+                result.push(nonEmptyTiles[i]);
                 i++;
             }
         }
         
+        // 第三步：填充剩余的空白位置
         while (result.length < 4) {
             result.push(0);
         }

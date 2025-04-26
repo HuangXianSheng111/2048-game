@@ -303,6 +303,7 @@ class Game2048 {
     }
 
     setupEventListeners() {
+        // 键盘事件 (仅桌面端)
         document.addEventListener('keydown', (e) => {
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
                 e.preventDefault();
@@ -317,14 +318,13 @@ class Game2048 {
 
         const gridElement = document.querySelector('.grid');
         
-        // 改进的设备类型检测
+        // 优化的设备和浏览器检测
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        // 改进的Safari浏览器检测
+        // Safari检测 (特别关注iOS设备)
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || 
-                        (/(iPhone|iPad|iPod).*AppleWebKit(?!.*Safari)/i.test(navigator.userAgent) ||
-                        (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream));
+                        (/iPad|iPhone|iPod/.test(navigator.userAgent));
         
-        // 为移动设备添加特殊标记
+        // 为移动设备和Safari添加特殊标记
         if (isMobile) {
             document.body.classList.add('mobile-device');
             if (isSafari) {
@@ -332,131 +332,133 @@ class Game2048 {
             }
         }
         
-        let startX, startY;
+        // 触摸状态变量
+        let touchStartX = null;
+        let touchStartY = null;
+        let touchEndX = null;
+        let touchEndY = null;
         let hasMoved = false;
-        let touchStartTime;
-        let isTouchLocked = false;
         
-        // 优化的触摸开始处理
+        // 简化和优化的触摸处理函数
         const handleTouchStart = (e) => {
             if (this.isAnimating) return;
             
-            // 记录初始触摸位置
             const touch = e.touches[0];
-            startX = touch.clientX;
-            startY = touch.clientY;
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
             hasMoved = false;
-            touchStartTime = new Date().getTime();
-            isTouchLocked = false;
             
-            gridElement.classList.add('touch-active');
+            // 防止长按菜单
+            e.preventDefault();
         };
         
-        // 改进的触摸移动处理
         const handleTouchMove = (e) => {
-            if (!startX || !startY || this.isAnimating || isTouchLocked) return;
+            if (!touchStartX || !touchStartY || this.isAnimating) return;
+            
+            // 关键：阻止Safari中的默认滚动行为
+            e.preventDefault();
             
             const touch = e.touches[0];
-            const moveX = touch.clientX - startX;
-            const moveY = touch.clientY - startY;
+            touchEndX = touch.clientX;
+            touchEndY = touch.clientY;
             
-            // 如果是在游戏格子区域内的滑动，阻止默认行为
-            if (e.target.closest('.grid') || 
-                Math.abs(moveX) > 10 || Math.abs(moveY) > 10) {
-                e.preventDefault();
-            }
-            
-            // 降低检测阈值，提高灵敏度
-            if (Math.abs(moveX) > 3 || Math.abs(moveY) > 3) {
+            // 设置移动标志
+            if (Math.abs(touchEndX - touchStartX) > 5 || Math.abs(touchEndY - touchStartY) > 5) {
                 hasMoved = true;
             }
         };
         
-        // 优化的触摸结束处理
         const handleTouchEnd = (e) => {
-            gridElement.classList.remove('touch-active');
+            // 确保有有效的开始和结束坐标
+            if (!touchStartX || !touchStartY || this.isAnimating || !hasMoved) {
+                touchStartX = null;
+                touchStartY = null;
+                touchEndX = null;
+                touchEndY = null;
+                return;
+            }
             
-            if (!startX || !startY || this.isAnimating || isTouchLocked) return;
+            // 如果没有结束坐标(没有触发touchmove)，使用最后一个触摸点
+            if (touchEndX === null || touchEndY === null) {
+                const touch = e.changedTouches[0];
+                touchEndX = touch.clientX;
+                touchEndY = touch.clientY;
+            }
             
-            const touchEndTime = new Date().getTime();
-            const touchDuration = touchEndTime - touchStartTime;
-            const touch = e.changedTouches[0];
-            const deltaX = touch.clientX - startX;
-            const deltaY = touch.clientY - startY;
-            const threshold = 5; // 降低阈值，提高响应灵敏度
+            // 计算滑动距离和方向
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
             
-            // 重置触摸开始位置
-            startX = null;
-            startY = null;
+            // 较低的阈值，更灵敏的检测 (针对Safari优化)
+            const swipeThreshold = 20;
             
-            // 优化判断逻辑
-            if ((Math.abs(deltaX) < threshold && Math.abs(deltaY) < threshold) || 
-                !hasMoved || touchDuration > 800) return;
+            // 重置触摸状态
+            const tempDeltaX = deltaX;
+            const tempDeltaY = deltaY;
+            touchStartX = null;
+            touchStartY = null;
+            touchEndX = null;
+            touchEndY = null;
             
-            // 锁定触摸，防止多次触发
-            isTouchLocked = true;
+            // 忽略太小的移动
+            if (Math.abs(tempDeltaX) < swipeThreshold && Math.abs(tempDeltaY) < swipeThreshold) {
+                return;
+            }
             
-            // 防抖，避免多次触发
-            this.isAnimating = true;
-            setTimeout(() => {
-                this.isAnimating = false;
-                isTouchLocked = false;
-            }, 100);
-            
-            // 更精确的滑动方向判断
-            const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
-            if (isHorizontal) {
-                this.move(deltaX > 0 ? 'ArrowRight' : 'ArrowLeft');
+            // 确定主要滑动方向并执行移动
+            if (Math.abs(tempDeltaX) > Math.abs(tempDeltaY)) {
+                // 水平滑动
+                this.move(tempDeltaX > 0 ? 'ArrowRight' : 'ArrowLeft');
             } else {
-                this.move(deltaY > 0 ? 'ArrowDown' : 'ArrowUp');
+                // 垂直滑动
+                this.move(tempDeltaY > 0 ? 'ArrowDown' : 'ArrowUp');
             }
         };
         
-        // 触摸事件取消处理
         const handleTouchCancel = () => {
-            startX = null;
-            startY = null;
+            touchStartX = null;
+            touchStartY = null;
+            touchEndX = null;
+            touchEndY = null;
             hasMoved = false;
-            isTouchLocked = false;
-            gridElement.classList.remove('touch-active');
         };
         
-        // 修改事件绑定方式，确保在所有移动设备上都能正常工作
-        gridElement.addEventListener('touchstart', handleTouchStart, { passive: true });
-        gridElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+        // 移除旧的事件监听器以避免重复
+        gridElement.removeEventListener('touchstart', handleTouchStart);
+        gridElement.removeEventListener('touchmove', handleTouchMove);
+        gridElement.removeEventListener('touchend', handleTouchEnd);
+        gridElement.removeEventListener('touchcancel', handleTouchCancel);
+        
+        // 添加优化的事件监听器
+        gridElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+        gridElement.addEventListener('touchmove', handleTouchMove, { passive: false }); // 关键: passive: false 允许阻止默认滑动
         gridElement.addEventListener('touchend', handleTouchEnd, { passive: true });
         gridElement.addEventListener('touchcancel', handleTouchCancel, { passive: true });
         
-        // 对于iOS Safari特别处理，防止页面弹性滚动
+        // Safari特定修复: 阻止整个页面在游戏区域上的默认滚动行为
         if (isSafari && isMobile) {
-            // 仅对游戏区域应用触摸限制，而不是整个文档
-            gridElement.style.webkitOverflowScrolling = 'touch';
-            gridElement.style.overscrollBehavior = 'none';
-            
-            // 添加额外的touchmove监听器来阻止游戏区域的默认滚动
-            gridElement.addEventListener('touchmove', (e) => {
-                e.preventDefault();
+            // 1. 整页阻止默认滚动行为
+            document.body.addEventListener('touchmove', (e) => {
+                if (e.target.closest('.grid')) {
+                    e.preventDefault();
+                }
             }, { passive: false });
             
-            // 动态调整视窗元数据，确保正确渲染
+            // 2. 确保viewport设置正确
             const viewport = document.querySelector('meta[name="viewport"]');
             if (viewport) {
-                viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-            } else {
-                const metaTag = document.createElement('meta');
-                metaTag.name = 'viewport';
-                metaTag.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-                document.getElementsByTagName('head')[0].appendChild(metaTag);
+                viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
             }
             
-            // 防止页面整体滚动问题
-            document.addEventListener('touchmove', (e) => {
+            // 3. 针对Safari的额外滑动增强
+            gridElement.addEventListener('touchstart', (e) => {
+                // 在网格元素上始终阻止默认行为
                 if (e.target.closest('.grid')) {
                     e.preventDefault();
                 }
             }, { passive: false });
         }
-        
+
         // 处理页面可见性变化
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {

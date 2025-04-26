@@ -9,13 +9,9 @@ class Game2048 {
         this.touchStartX = null;
         this.touchStartY = null;
         this.isAnimating = false;
-        this.useParticles = true; // 添加粒子效果选项
-        this.lastTouchDirection = null; // 记录最后滑动方向
-        this.touchFeedbackEnabled = true; // 触摸反馈开关
         this.init();
         this.setupEventListeners();
         this.updateBestScore();
-        this.addGameIntro();
     }
 
     init() {
@@ -53,35 +49,6 @@ class Game2048 {
         this.canUndo = false;
     }
 
-    addGameIntro() {
-        if (!localStorage.getItem('gameIntroShown')) {
-            const intro = document.createElement('div');
-            intro.className = 'game-intro';
-            intro.innerHTML = `
-                <div class="intro-content">
-                    <h2>2048</h2>
-                    <p>滑动合并数字，达成2048！</p>
-                    <div class="swipe-hint">
-                        <div class="arrow arrow-up"></div>
-                        <div class="arrow arrow-right"></div>
-                        <div class="arrow arrow-down"></div>
-                        <div class="arrow arrow-left"></div>
-                    </div>
-                </div>
-            `;
-            document.querySelector('.grid').appendChild(intro);
-
-            setTimeout(() => {
-                intro.classList.add('show');
-                localStorage.setItem('gameIntroShown', 'true');
-                setTimeout(() => {
-                    intro.classList.remove('show');
-                    setTimeout(() => intro.remove(), 500);
-                }, 2500);
-            }, 500);
-        }
-    }
-
     addNewTile() {
         const emptyCells = this.grid.reduce((acc, val, idx) => {
             if (val === 0) acc.push(idx);
@@ -90,171 +57,32 @@ class Game2048 {
 
         if (emptyCells.length > 0) {
             const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-            const newValue = Math.random() < 0.9 ? 2 : 4;
-            this.grid[randomCell] = newValue;
-
+            this.grid[randomCell] = Math.random() < 0.9 ? 2 : 4;
             setTimeout(() => {
                 const cells = document.querySelectorAll('.grid-cell');
                 cells[randomCell].classList.add('new');
-
-                if (this.useParticles) {
-                    this.createPopParticles(cells[randomCell], newValue);
-                }
-
                 setTimeout(() => cells[randomCell].classList.remove('new'), 300);
             }, 50);
         }
     }
 
-    createPopParticles(element, value) {
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        if (!isMobile) return;
-
-        const rect = element.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-
-        let color;
-        switch (value) {
-            case 2: color = '#eee4da'; break;
-            case 4: color = '#ede0c8'; break;
-            case 8: color = '#f2b179'; break;
-            default: color = '#f59563'; break;
-        }
-
-        const particleCount = 8;
-        for (let i = 0; i < particleCount; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
-            particle.style.backgroundColor = color;
-
-            const size = Math.random() * 6 + 4;
-            particle.style.width = size + 'px';
-            particle.style.height = size + 'px';
-
-            particle.style.position = 'fixed';
-            particle.style.zIndex = '1000';
-            particle.style.borderRadius = '50%';
-            particle.style.left = centerX + 'px';
-            particle.style.top = centerY + 'px';
-
-            document.body.appendChild(particle);
-
-            const angle = Math.random() * Math.PI * 2;
-            const velocity = Math.random() * 80 + 40;
-            const vx = Math.cos(angle) * velocity;
-            const vy = Math.sin(angle) * velocity;
-
-            const startTime = Date.now();
-            const animate = () => {
-                const elapsed = Date.now() - startTime;
-                const duration = 700;
-
-                if (elapsed < duration) {
-                    const progress = elapsed / duration;
-                    const easing = 1 - Math.pow(1 - progress, 3);
-
-                    const moveX = vx * easing;
-                    const moveY = vy * easing;
-                    const gravity = 300 * Math.pow(progress, 2);
-
-                    particle.style.transform = `translate(${moveX}px, ${moveY + gravity}px)`;
-                    particle.style.opacity = 1 - progress;
-
-                    requestAnimationFrame(animate);
-                } else {
-                    document.body.removeChild(particle);
-                }
-            };
-
-            requestAnimationFrame(animate);
-        }
-    }
-
-    showTouchFeedback(x, y, direction) {
-        if (!this.touchFeedbackEnabled) return;
-
-        const gridElement = document.querySelector('.grid');
-        const rect = gridElement.getBoundingClientRect();
-
-        const feedback = document.createElement('div');
-        feedback.className = 'touch-feedback';
-        feedback.style.left = (x - rect.left) + 'px';
-        feedback.style.top = (y - rect.top) + 'px';
-
-        if (direction) {
-            feedback.classList.add(`direction-${direction}`);
-        }
-
-        gridElement.appendChild(feedback);
-
-        setTimeout(() => {
-            gridElement.removeChild(feedback);
-        }, 600);
-    }
-
     updateView() {
         if (this.isAnimating) return;
-
         const cells = document.querySelectorAll('.grid-cell');
         cells.forEach((cell, index) => {
-            const previousValue = parseInt(cell.textContent) || 0;
-            const hadClass = cell.className.split(' ')
-                .filter(c => c.startsWith('tile-'))
-                .join(' ');
-
             cell.className = 'grid-cell';
-
+            cell.textContent = '';
             const value = this.grid[index];
             if (value !== 0) {
                 cell.textContent = value;
                 cell.classList.add(`tile-${value}`);
-
-                if (previousValue !== value && previousValue !== 0) {
-                    cell.classList.add('value-changed');
-                    setTimeout(() => {
-                        cell.classList.remove('value-changed');
-                    }, 300);
-                }
-            } else {
-                cell.textContent = '';
-
-                if (previousValue !== 0) {
-                    const ghost = document.createElement('div');
-                    ghost.className = `grid-cell-ghost ${hadClass}`;
-                    ghost.textContent = previousValue;
-                    cell.appendChild(ghost);
-
-                    setTimeout(() => {
-                        ghost.classList.add('fade-out');
-                        setTimeout(() => {
-                            if (ghost.parentElement === cell) {
-                                cell.removeChild(ghost);
-                            }
-                        }, 300);
-                    }, 10);
-                }
             }
         });
-
-        if (this.lastTouchDirection) {
-            const gridElement = document.querySelector('.grid');
-            const directionClass = `slide-${this.lastTouchDirection.replace('Arrow', '').toLowerCase()}`;
-
-            gridElement.classList.remove('slide-up', 'slide-down', 'slide-left', 'slide-right');
-
-            gridElement.classList.add(directionClass);
-            setTimeout(() => {
-                gridElement.classList.remove(directionClass);
-            }, 200);
-        }
     }
 
     move(direction) {
         if (this.isAnimating) return;
         this.savePreviousState();
-
-        this.isAnimating = true;
         let moved = false;
 
         switch (direction) {
@@ -273,37 +101,23 @@ class Game2048 {
         }
 
         if (moved) {
-            this.lastTouchDirection = direction;
+            this.addNewTile();
+            this.updateView();
+            
+            if (this.score > this.bestScore) {
+                this.bestScore = this.score;
+                localStorage.setItem('bestScore', this.bestScore);
+                this.updateBestScore();
+                const bestScoreContainer = document.querySelector('.best-score');
+                bestScoreContainer.style.animation = 'pop 0.3s ease';
+                setTimeout(() => bestScoreContainer.style.animation = '', 300);
+            }
 
-            document.querySelector('.grid').classList.add('grid-moved');
-
-            setTimeout(() => {
-                this.addNewTile();
-                this.updateView();
-
-                document.querySelector('.grid').classList.remove('grid-moved');
-
-                if (this.score > this.bestScore) {
-                    this.bestScore = this.score;
-                    localStorage.setItem('bestScore', this.bestScore);
-                    this.updateBestScore();
-                    const bestScoreContainer = document.querySelector('.best-score');
-                    bestScoreContainer.style.animation = 'pop 0.3s ease';
-                    setTimeout(() => bestScoreContainer.style.animation = '', 300);
-                }
-
-                if (this.isGameOver()) {
-                    this.showGameOver();
-                } else if (this.hasWon()) {
-                    this.showWinMessage();
-                }
-
-                setTimeout(() => {
-                    this.isAnimating = false;
-                }, 150);
-            }, 150);
-        } else {
-            this.isAnimating = false;
+            if (this.isGameOver()) {
+                this.showGameOver();
+            } else if (this.hasWon()) {
+                this.showWinMessage();
+            }
         }
     }
 
@@ -339,6 +153,7 @@ class Game2048 {
                     moved = true;
                     this.grid[i * 4 + j] = finalRow[j];
                     
+                    // 如果是合并结果，添加合并动画
                     if (finalRow[j] !== 0 && finalRow[j] !== originalRow[j]) {
                         setTimeout(() => {
                             const cell = document.querySelectorAll('.grid-cell')[i * 4 + j];
@@ -377,6 +192,7 @@ class Game2048 {
                     moved = true;
                     this.grid[i * 4 + j] = finalCol[i];
                     
+                    // 如果是合并结果，添加合并动画
                     if (finalCol[i] !== 0 && finalCol[i] !== originalCol[i]) {
                         setTimeout(() => {
                             const cell = document.querySelectorAll('.grid-cell')[i * 4 + j];
@@ -487,6 +303,7 @@ class Game2048 {
     }
 
     setupEventListeners() {
+        // 键盘事件 (仅桌面端)
         document.addEventListener('keydown', (e) => {
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
                 e.preventDefault();
@@ -501,10 +318,13 @@ class Game2048 {
 
         const gridElement = document.querySelector('.grid');
         
+        // 优化的设备和浏览器检测
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        // Safari检测 (特别关注iOS设备)
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || 
                         (/iPad|iPhone|iPod/.test(navigator.userAgent));
         
+        // 为移动设备和Safari添加特殊标记
         if (isMobile) {
             document.body.classList.add('mobile-device');
             if (isSafari) {
@@ -512,146 +332,157 @@ class Game2048 {
             }
         }
         
+        // 触摸状态变量
         let touchStartX = null;
         let touchStartY = null;
         let touchEndX = null;
         let touchEndY = null;
         let hasMoved = false;
-        let touchStartTime = null;
         
+        // 简化和优化的触摸处理函数
         const handleTouchStart = (e) => {
             if (this.isAnimating) return;
             
             const touch = e.touches[0];
             touchStartX = touch.clientX;
             touchStartY = touch.clientY;
-            touchEndX = null;
-            touchEndY = null;
             hasMoved = false;
-            touchStartTime = Date.now();
             
+            // 防止长按菜单
             e.preventDefault();
-            
-            gridElement.classList.add('touch-active');
         };
         
         const handleTouchMove = (e) => {
             if (!touchStartX || !touchStartY || this.isAnimating) return;
             
+            // 关键：阻止Safari中的默认滚动行为
             e.preventDefault();
             
             const touch = e.touches[0];
             touchEndX = touch.clientX;
             touchEndY = touch.clientY;
             
-            const moveThreshold = 3;
-            if (Math.abs(touchEndX - touchStartX) > moveThreshold || 
-                Math.abs(touchEndY - touchStartY) > moveThreshold) {
+            // 设置移动标志
+            if (Math.abs(touchEndX - touchStartX) > 5 || Math.abs(touchEndY - touchStartY) > 5) {
                 hasMoved = true;
             }
         };
         
         const handleTouchEnd = (e) => {
-            gridElement.classList.remove('touch-active');
-            
-            if (!touchStartX || !touchStartY || this.isAnimating) {
-                resetTouchState();
+            // 确保有有效的开始和结束坐标
+            if (!touchStartX || !touchStartY || this.isAnimating || !hasMoved) {
+                touchStartX = null;
+                touchStartY = null;
+                touchEndX = null;
+                touchEndY = null;
                 return;
             }
             
-            const touchDuration = Date.now() - touchStartTime;
-            
+            // 如果没有结束坐标(没有触发touchmove)，使用最后一个触摸点
             if (touchEndX === null || touchEndY === null) {
                 const touch = e.changedTouches[0];
                 touchEndX = touch.clientX;
                 touchEndY = touch.clientY;
             }
             
+            // 计算滑动距离和方向
             const deltaX = touchEndX - touchStartX;
             const deltaY = touchEndY - touchStartY;
             
-            const swipeThreshold = isSafari ? 15 : 20;
+            // 较低的阈值，更灵敏的检测 (针对Safari优化)
+            const swipeThreshold = 20;
             
-            if (!hasMoved || Math.abs(deltaX) < swipeThreshold && Math.abs(deltaY) < swipeThreshold) {
-                resetTouchState();
+            // 重置触摸状态
+            const tempDeltaX = deltaX;
+            const tempDeltaY = deltaY;
+            touchStartX = null;
+            touchStartY = null;
+            touchEndX = null;
+            touchEndY = null;
+            
+            // 忽略太小的移动
+            if (Math.abs(tempDeltaX) < swipeThreshold && Math.abs(tempDeltaY) < swipeThreshold) {
                 return;
             }
             
-            let direction;
-            if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                direction = deltaX > 0 ? 'ArrowRight' : 'ArrowLeft';
+            // 确定主要滑动方向并执行移动
+            if (Math.abs(tempDeltaX) > Math.abs(tempDeltaY)) {
+                // 水平滑动
+                this.move(tempDeltaX > 0 ? 'ArrowRight' : 'ArrowLeft');
             } else {
-                direction = deltaY > 0 ? 'ArrowDown' : 'ArrowUp';
+                // 垂直滑动
+                this.move(tempDeltaY > 0 ? 'ArrowDown' : 'ArrowUp');
             }
-            
-            this.showTouchFeedback(touchEndX, touchEndY, direction.replace('Arrow', '').toLowerCase());
-            
-            this.move(direction);
-            
-            resetTouchState();
         };
         
         const handleTouchCancel = () => {
-            gridElement.classList.remove('touch-active');
-            resetTouchState();
-        };
-        
-        const resetTouchState = () => {
             touchStartX = null;
             touchStartY = null;
             touchEndX = null;
             touchEndY = null;
             hasMoved = false;
-            touchStartTime = null;
         };
         
+        // 移除旧的事件监听器以避免重复
         gridElement.removeEventListener('touchstart', handleTouchStart);
         gridElement.removeEventListener('touchmove', handleTouchMove);
         gridElement.removeEventListener('touchend', handleTouchEnd);
         gridElement.removeEventListener('touchcancel', handleTouchCancel);
         
+        // 添加优化的事件监听器
         gridElement.addEventListener('touchstart', handleTouchStart, { passive: false });
-        gridElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+        gridElement.addEventListener('touchmove', handleTouchMove, { passive: false }); // 关键: passive: false 允许阻止默认滑动
         gridElement.addEventListener('touchend', handleTouchEnd, { passive: true });
         gridElement.addEventListener('touchcancel', handleTouchCancel, { passive: true });
         
+        // Safari特定修复: 阻止整个页面在游戏区域上的默认滚动行为
         if (isSafari && isMobile) {
+            // 1. 整页阻止默认滚动行为
             document.body.addEventListener('touchmove', (e) => {
                 if (e.target.closest('.grid')) {
                     e.preventDefault();
                 }
             }, { passive: false });
             
+            // 2. 确保viewport设置正确
             const viewport = document.querySelector('meta[name="viewport"]');
             if (viewport) {
                 viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
             }
             
+            // 3. 针对Safari的额外滑动增强
             gridElement.addEventListener('touchstart', (e) => {
+                // 在网格元素上始终阻止默认行为
                 if (e.target.closest('.grid')) {
                     e.preventDefault();
                 }
             }, { passive: false });
         }
 
+        // 处理页面可见性变化
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
+                // 保存游戏状态
                 localStorage.setItem('gameState', JSON.stringify({
                     grid: this.grid,
                     score: this.score,
                     bestScore: this.bestScore
                 }));
             } else {
+                // 恢复焦点时，刷新视图以防任何显示问题
                 this.updateView();
             }
         });
 
+        // 处理屏幕方向变化
         window.addEventListener('orientationchange', () => {
             setTimeout(() => {
+                // 方向变化后等待DOM更新，然后刷新视图
                 this.updateView();
             }, 200);
         });
 
+        // 恢复之前的游戏状态
         const savedState = localStorage.getItem('gameState');
         if (savedState) {
             try {

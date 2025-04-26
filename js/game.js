@@ -9,9 +9,13 @@ class Game2048 {
         this.touchStartX = null;
         this.touchStartY = null;
         this.isAnimating = false;
+        this.isFirstGame = !localStorage.getItem('hasPlayed');
         this.init();
         this.setupEventListeners();
         this.updateBestScore();
+        if (this.isFirstGame) {
+            this.showTutorial();
+        }
     }
 
     init() {
@@ -85,6 +89,9 @@ class Game2048 {
         this.savePreviousState();
         let moved = false;
 
+        // 显示方向指示器
+        this.showDirectionIndicator(direction);
+
         switch (direction) {
             case 'ArrowLeft':
                 moved = this.moveLeft();
@@ -101,6 +108,17 @@ class Game2048 {
         }
 
         if (moved) {
+            // 给予触觉反馈（仅限支持的设备）
+            if ('vibrate' in navigator) {
+                navigator.vibrate(15); // 轻微振动15ms
+            }
+            
+            // 标记已经玩过游戏
+            if (this.isFirstGame) {
+                localStorage.setItem('hasPlayed', 'true');
+                this.isFirstGame = false;
+            }
+
             this.addNewTile();
             this.updateView();
             
@@ -118,6 +136,9 @@ class Game2048 {
             } else if (this.hasWon()) {
                 this.showWinMessage();
             }
+        } else {
+            // 如果没有移动，显示无效移动指示
+            this.showInvalidMove(direction);
         }
     }
 
@@ -139,6 +160,8 @@ class Game2048 {
 
     moveInRows(transform) {
         let moved = false;
+        const allAnimationPromises = [];
+        
         for (let i = 0; i < 4; i++) {
             const row = this.getRow(i);
             const originalRow = [...row];
@@ -151,33 +174,65 @@ class Game2048 {
             for (let j = 0; j < 4; j++) {
                 if (this.grid[i * 4 + j] !== finalRow[j]) {
                     moved = true;
+                    
+                    // 跟踪变化以便动画
+                    const oldValue = this.grid[i * 4 + j];
+                    const newValue = finalRow[j];
+                    const oldIndex = i * 4 + j;
+                    const cells = document.querySelectorAll('.grid-cell');
+                    
+                    // 更新网格值
                     this.grid[i * 4 + j] = finalRow[j];
                     
-                    // 如果是合并结果，添加合并动画
-                    if (finalRow[j] !== 0 && finalRow[j] !== originalRow[j]) {
-                        setTimeout(() => {
-                            const cell = document.querySelectorAll('.grid-cell')[i * 4 + j];
-                            cell.classList.add('merged');
-                            if (finalRow[j] > originalRow[j]) {
-                                const scorePopup = document.createElement('div');
-                                scorePopup.className = 'score-popup';
-                                scorePopup.textContent = '+' + finalRow[j];
-                                cell.appendChild(scorePopup);
-                                setTimeout(() => {
-                                    scorePopup.remove();
-                                }, 500);
-                            }
-                            setTimeout(() => cell.classList.remove('merged'), 300);
-                        }, 50);
+                    // 如果是合并结果，添加增强的合并动画
+                    if (newValue !== 0 && newValue !== oldValue) {
+                        const animPromise = new Promise(resolve => {
+                            setTimeout(() => {
+                                const cell = cells[i * 4 + j];
+                                cell.classList.add('merged');
+                                
+                                if (newValue > oldValue && oldValue !== 0) {
+                                    // 增强的分数弹出
+                                    const scorePopup = document.createElement('div');
+                                    scorePopup.className = 'score-popup';
+                                    scorePopup.textContent = '+' + newValue;
+                                    cell.appendChild(scorePopup);
+                                    
+                                    // 为合并添加粒子效果
+                                    this.createMergeParticles(cell, newValue);
+                                    
+                                    setTimeout(() => {
+                                        scorePopup.remove();
+                                        resolve();
+                                    }, 500);
+                                } else {
+                                    resolve();
+                                }
+                                
+                                setTimeout(() => cell.classList.remove('merged'), 300);
+                            }, 50);
+                        });
+                        
+                        allAnimationPromises.push(animPromise);
                     }
                 }
             }
         }
+        
+        // 等待所有动画完成
+        if (allAnimationPromises.length > 0) {
+            Promise.all(allAnimationPromises).then(() => {
+                this.isAnimating = false;
+            });
+        }
+        
         return moved;
     }
 
     moveInColumns(transform) {
         let moved = false;
+        const allAnimationPromises = [];
+        
         for (let j = 0; j < 4; j++) {
             const col = this.getColumn(j);
             const originalCol = [...col];
@@ -190,28 +245,57 @@ class Game2048 {
             for (let i = 0; i < 4; i++) {
                 if (this.grid[i * 4 + j] !== finalCol[i]) {
                     moved = true;
+                    
+                    // 跟踪变化以便动画
+                    const oldValue = this.grid[i * 4 + j];
+                    const newValue = finalCol[i];
+                    const cells = document.querySelectorAll('.grid-cell');
+                    
+                    // 更新网格值
                     this.grid[i * 4 + j] = finalCol[i];
                     
-                    // 如果是合并结果，添加合并动画
-                    if (finalCol[i] !== 0 && finalCol[i] !== originalCol[i]) {
-                        setTimeout(() => {
-                            const cell = document.querySelectorAll('.grid-cell')[i * 4 + j];
-                            cell.classList.add('merged');
-                            if (finalCol[i] > originalCol[i]) {
-                                const scorePopup = document.createElement('div');
-                                scorePopup.className = 'score-popup';
-                                scorePopup.textContent = '+' + finalCol[i];
-                                cell.appendChild(scorePopup);
-                                setTimeout(() => {
-                                    scorePopup.remove();
-                                }, 500);
-                            }
-                            setTimeout(() => cell.classList.remove('merged'), 300);
-                        }, 50);
+                    // 如果是合并结果，添加增强的合并动画
+                    if (newValue !== 0 && newValue !== oldValue) {
+                        const animPromise = new Promise(resolve => {
+                            setTimeout(() => {
+                                const cell = cells[i * 4 + j];
+                                cell.classList.add('merged');
+                                
+                                if (newValue > oldValue && oldValue !== 0) {
+                                    // 增强的分数弹出
+                                    const scorePopup = document.createElement('div');
+                                    scorePopup.className = 'score-popup';
+                                    scorePopup.textContent = '+' + newValue;
+                                    cell.appendChild(scorePopup);
+                                    
+                                    // 为合并添加粒子效果
+                                    this.createMergeParticles(cell, newValue);
+                                    
+                                    setTimeout(() => {
+                                        scorePopup.remove();
+                                        resolve();
+                                    }, 500);
+                                } else {
+                                    resolve();
+                                }
+                                
+                                setTimeout(() => cell.classList.remove('merged'), 300);
+                            }, 50);
+                        });
+                        
+                        allAnimationPromises.push(animPromise);
                     }
                 }
             }
         }
+        
+        // 等待所有动画完成
+        if (allAnimationPromises.length > 0) {
+            Promise.all(allAnimationPromises).then(() => {
+                this.isAnimating = false;
+            });
+        }
+        
         return moved;
     }
 
@@ -239,6 +323,7 @@ class Game2048 {
                 result.push(mergedValue);
                 this.score += mergedValue;
                 document.getElementById('score').textContent = this.score;
+                this.checkAchievement(mergedValue);
                 i += 2;
             } else {
                 result.push(merged[i]);
@@ -300,6 +385,146 @@ class Game2048 {
                 winMessage.remove();
             }, 3000);
         }
+    }
+
+    showDirectionIndicator(direction) {
+        // 创建方向指示器元素
+        const indicator = document.createElement('div');
+        indicator.className = 'direction-indicator';
+        
+        // 根据方向设置样式和内容
+        switch (direction) {
+            case 'ArrowLeft':
+                indicator.innerHTML = '←';
+                indicator.style.left = '10px';
+                indicator.style.top = '50%';
+                break;
+            case 'ArrowRight':
+                indicator.innerHTML = '→';
+                indicator.style.right = '10px';
+                indicator.style.top = '50%';
+                break;
+            case 'ArrowUp':
+                indicator.innerHTML = '↑';
+                indicator.style.top = '10px';
+                indicator.style.left = '50%';
+                break;
+            case 'ArrowDown':
+                indicator.innerHTML = '↓';
+                indicator.style.bottom = '10px';
+                indicator.style.left = '50%';
+                break;
+        }
+        
+        // 添加到DOM并设置自动消失
+        const grid = document.querySelector('.grid');
+        grid.appendChild(indicator);
+        
+        setTimeout(() => {
+            indicator.classList.add('fade-out');
+            setTimeout(() => {
+                indicator.remove();
+            }, 300);
+        }, 300);
+    }
+    
+    showInvalidMove(direction) {
+        // 视觉反馈表示移动无效
+        const grid = document.querySelector('.grid');
+        grid.classList.add('invalid-move');
+        
+        setTimeout(() => {
+            grid.classList.remove('invalid-move');
+        }, 300);
+    }
+    
+    showTutorial() {
+        // 创建教程覆盖层
+        const tutorial = document.createElement('div');
+        tutorial.className = 'tutorial-overlay';
+        tutorial.innerHTML = `
+            <div class="tutorial-content">
+                <h3>欢迎来到 2048!</h3>
+                <div class="tutorial-step">
+                    <div class="tutorial-image swipe-animation"></div>
+                    <p>滑动屏幕合并相同的数字</p>
+                </div>
+                <div class="tutorial-step">
+                    <div class="tutorial-tiles">
+                        <div class="mini-tile">2</div>
+                        <div class="mini-tile">2</div>
+                        <div class="mini-arrow">→</div>
+                        <div class="mini-tile-merged">4</div>
+                    </div>
+                    <p>合并相同数字得到它们的和</p>
+                </div>
+                <div class="tutorial-step">
+                    <div class="tutorial-image goal-animation">2048</div>
+                    <p>达到2048数字获胜!</p>
+                </div>
+                <button id="start-game">开始游戏</button>
+            </div>
+        `;
+        
+        document.body.appendChild(tutorial);
+        
+        // 点击开始按钮关闭教程
+        document.getElementById('start-game').addEventListener('click', () => {
+            tutorial.classList.add('fade-out');
+            setTimeout(() => {
+                tutorial.remove();
+            }, 300);
+        });
+    }
+    
+    createMergeParticles(cell, value) {
+        // 创建合并时的粒子效果
+        const rect = cell.getBoundingClientRect();
+        const numParticles = 10;
+        
+        for (let i = 0; i < numParticles; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'merge-particle';
+            
+            // 根据数字值设置粒子颜色
+            const color = this.getColorForValue(value);
+            particle.style.backgroundColor = color;
+            
+            // 随机位置和动画
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 30 + Math.random() * 40;
+            const animation = Math.random() * 0.3 + 0.5;
+            
+            particle.style.left = `${rect.width / 2}px`;
+            particle.style.top = `${rect.height / 2}px`;
+            particle.style.setProperty('--angle', `${angle}rad`);
+            particle.style.setProperty('--distance', `${distance}px`);
+            particle.style.setProperty('--animation-time', `${animation}s`);
+            
+            cell.appendChild(particle);
+            
+            setTimeout(() => {
+                particle.remove();
+            }, animation * 1000);
+        }
+    }
+    
+    getColorForValue(value) {
+        // 根据数字值返回合适的颜色
+        const colors = {
+            2: '#eee4da',
+            4: '#ede0c8',
+            8: '#f2b179',
+            16: '#f59563',
+            32: '#f67c5f',
+            64: '#f65e3b',
+            128: '#edcf72',
+            256: '#edcc61',
+            512: '#edc850',
+            1024: '#edc53f',
+            2048: '#edc22e'
+        };
+        return colors[value] || '#3c3a32';
     }
 
     setupEventListeners() {
@@ -502,6 +727,56 @@ class Game2048 {
         document.getElementById('newGame').addEventListener('click', () => {
             this.init();
         });
+        
+        // 添加游戏成就触发器
+        this.setupAchievementSystem();
+    }
+    
+    setupAchievementSystem() {
+        // 监听分数变化触发成就
+        const achievementThresholds = [512, 1024, 2048];
+        let lastAchievementReached = parseInt(localStorage.getItem('lastAchievement') || '0');
+        
+        // 检查合并时是否达到成就
+        this.checkAchievement = (value) => {
+            if (value >= Math.max(...achievementThresholds)) {
+                // 检查所有成就
+                for (const threshold of achievementThresholds) {
+                    if (value >= threshold && threshold > lastAchievementReached) {
+                        this.showAchievement(`达成 ${threshold}!`, `恭喜合并出 ${threshold} 数字!`);
+                        lastAchievementReached = threshold;
+                        localStorage.setItem('lastAchievement', threshold);
+                        break;
+                    }
+                }
+            }
+        };
+    }
+    
+    showAchievement(title, message) {
+        const achievement = document.createElement('div');
+        achievement.className = 'achievement';
+        achievement.innerHTML = `
+            <div class="achievement-icon">🏆</div>
+            <div class="achievement-content">
+                <h4>${title}</h4>
+                <p>${message}</p>
+            </div>
+        `;
+        
+        document.body.appendChild(achievement);
+        
+        // 动画显示和自动消失
+        setTimeout(() => {
+            achievement.classList.add('show');
+            
+            setTimeout(() => {
+                achievement.classList.remove('show');
+                setTimeout(() => {
+                    achievement.remove();
+                }, 500);
+            }, 3000);
+        }, 100);
     }
 }
 

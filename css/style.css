@@ -397,6 +397,269 @@ h1::after {
     }
 }
 
+/* 方向指示器样式 */
+.direction-indicator {
+    position: absolute;
+    font-size: 40px;
+    color: #776e65;
+    background-color: rgba(255, 255, 255, 0.7);
+    width: 60px;
+    height: 60px;
+    line-height: 60px;
+    text-align: center;
+    border-radius: 50%;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    animation: indicatorPulse 0.5s ease;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+@keyframes indicatorPulse {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+    100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+}
+
+.direction-indicator.fade-out {
+    animation: fadeOut 0.3s ease forwards;
+}
+
+@keyframes fadeOut {
+    from { opacity: 0.7; }
+    to { opacity: 0; }
+}
+
+/* 无效移动反馈 */
+.invalid-move {
+    animation: invalidShake 0.3s ease;
+}
+
+@keyframes invalidShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* 合并粒子效果 */
+.merge-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    opacity: 0.8;
+    pointer-events: none;
+    z-index: 100;
+    animation: particleFly var(--animation-time) ease-out forwards;
+}
+
+@keyframes particleFly {
+    0% {
+        transform: translate(0, 0);
+        opacity: 0.8;
+        scale: 0.5;
+    }
+    100% {
+        transform: translate(calc(cos(var(--angle)) * var(--distance)), 
+                           calc(sin(var(--angle)) * var(--distance)));
+        opacity: 0;
+        scale: 0;
+    }
+}
+
+/* 新手教程样式 */
+.tutorial-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(250, 248, 239, 0.9);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.5s ease;
+}
+
+.tutorial-overlay.fade-out {
+    animation: fadeOut 0.3s ease forwards;
+}
+
+.tutorial-content {
+    background-color: white;
+    border-radius: 20px;
+    padding: 30px;
+    max-width: 90%;
+    width: 350px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.tutorial-content h3 {
+    margin-bottom: 20px;
+    color: #776e65;
+    font-size: 24px;
+}
+
+.tutorial-step {
+    margin-bottom: 25px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tutorial-step p {
+    margin-top: 10px;
+    color: #776e65;
+}
+
+.tutorial-image {
+    width: 100px;
+    height: 100px;
+    background-color: #bbada0;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+.swipe-animation::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    width: 20px;
+    height: 20px;
+    background-color: #eee4da;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    animation: swipeDemo 2s infinite;
+}
+
+@keyframes swipeDemo {
+    0%, 100% {
+        left: 20px;
+        opacity: 1;
+    }
+    50% {
+        left: 60px;
+        opacity: 0.7;
+    }
+}
+
+.tutorial-tiles {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.mini-tile, .mini-tile-merged {
+    width: 40px;
+    height: 40px;
+    background-color: #eee4da;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #776e65;
+}
+
+.mini-arrow {
+    font-size: 20px;
+    color: #776e65;
+}
+
+.mini-tile-merged {
+    background-color: #ede0c8;
+    animation: pop 1s infinite;
+}
+
+.goal-animation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: #f9f6f2;
+    background-color: #edc22e;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+#start-game {
+    background: linear-gradient(135deg, #8f7a66 0%, #7f6a56 100%);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    padding: 12px 35px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+#start-game:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* 成就系统 */
+.achievement {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    min-width: 250px;
+    max-width: 90%;
+    opacity: 0;
+    transition: transform 0.5s ease, opacity 0.5s ease;
+}
+
+.achievement.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.achievement-icon {
+    font-size: 30px;
+    margin-right: 15px;
+}
+
+.achievement-content {
+    flex: 1;
+}
+
+.achievement-content h4 {
+    margin: 0 0 5px 0;
+    color: #776e65;
+    font-size: 18px;
+}
+
+.achievement-content p {
+    margin: 0;
+    font-size: 14px;
+    color: #888;
+}
+
 @media (max-width: 500px) {
     .container {
         padding: 15px;
@@ -432,6 +695,21 @@ h1::after {
 
     .version {
         font-size: 14px;
+    }
+
+    .direction-indicator {
+        font-size: 30px;
+        width: 50px;
+        height: 50px;
+        line-height: 50px;
+    }
+    
+    .achievement {
+        min-width: 220px;
+    }
+    
+    .tutorial-content {
+        padding: 20px;
     }
 }
 
@@ -481,4 +759,26 @@ h1::after {
 @keyframes fadeInGame {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* 额外增强Safari上的动画效果 */
+@supports (-webkit-touch-callout: none) {
+    .grid-cell.merged {
+        -webkit-animation-name: pop;
+        animation-name: pop;
+        -webkit-animation-duration: 0.3s;
+        animation-duration: 0.3s;
+        -webkit-animation-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        animation-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    .direction-indicator {
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+
+    /* 提升滑动反馈清晰度 */
+    .safari-browser .direction-indicator {
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    }
 }

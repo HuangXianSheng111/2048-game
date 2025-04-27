@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f67c5f"/>
+      <stop offset="50%" stop-color="#edcf72"/>
+      <stop offset="100%" stop-color="#f65e3b"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="2"/>
+      <feComposite in2="SourceGraphic" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0"/>
+      <feBlend mode="normal" in2="SourceGraphic" result="shadow"/>
+    </filter>
+  </defs>
+  
+  <!-- 背景圆角矩形 -->
+  <rect x="10" y="10" width="172" height="172" rx="20" ry="20" fill="#bbada0"/>
+  
+  <!-- 游戏中的"2048"数字块 -->
+  <g filter="url(#shadow)">
+    <!-- "2048" 主方块 -->
+    <rect x="25" y="25" width="142" height="142" rx="10" ry="10" fill="url(#gradient)"/>
+  </g>
+  
+  <!-- 2048文字 -->
+  <text x="96" y="108" font-family="Arial, Helvetica, sans-serif" font-size="45" 
+        font-weight="bold" fill="white" text-anchor="middle">2048</text>
+  
+  <!-- 装饰性小方块，表示游戏中的其他数字 -->
+  <rect x="35" y="130" width="30" height="30" rx="5" ry="5" fill="#eee4da" opacity="0.7"/>
+  <rect x="75" y="130" width="30" height="30" rx="5" ry="5" fill="#ede0c8" opacity="0.7"/>
+  <rect x="115" y="130" width="30" height="30" rx="5" ry="5" fill="#f2b179" opacity="0.7"/>
+  
+  <!-- 添加游戏中的箭头符号表示游戏操作 -->
+  <g fill="white" opacity="0.6">
+    <path d="M72,45 L82,35 L92,45 Z"/> <!-- 上箭头 -->
+    <path d="M132,75 L142,85 L132,95 Z"/> <!-- 右箭头 -->
+    <path d="M82,125 L72,135 L62,125 Z"/> <!-- 下箭头 -->
+    <path d="M42,95 L32,85 L42,75 Z"/> <!-- 左箭头 -->
+  </g>
+</svg>

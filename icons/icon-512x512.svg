@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f67c5f"/>
+      <stop offset="50%" stop-color="#edcf72"/>
+      <stop offset="100%" stop-color="#f65e3b"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="5"/>
+      <feComposite in2="SourceGraphic" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0"/>
+      <feBlend mode="normal" in2="SourceGraphic" result="shadow"/>
+    </filter>
+    
+    <!-- 创建游戏板格子的图案 -->
+    <pattern id="gridPattern" patternUnits="userSpaceOnUse" width="120" height="120" patternTransform="rotate(0)">
+      <rect width="55" height="55" x="5" y="5" rx="8" ry="8" fill="#cdc1b4" opacity="0.4"/>
+      <rect width="55" height="55" x="65" y="5" rx="8" ry="8" fill="#cdc1b4" opacity="0.4"/>
+      <rect width="55" height="55" x="5" y="65" rx="8" ry="8" fill="#cdc1b4" opacity="0.4"/>
+      <rect width="55" height="55" x="65" y="65" rx="8" ry="8" fill="#cdc1b4" opacity="0.4"/>
+    </pattern>
+  </defs>
+  
+  <!-- 背景圆角矩形 -->
+  <rect x="26" y="26" width="460" height="460" rx="50" ry="50" fill="#bbada0"/>
+  
+  <!-- 游戏网格背景 -->
+  <rect x="46" y="46" width="420" height="420" rx="30" ry="30" fill="url(#gridPattern)"/>
+  
+  <!-- 游戏中的"2048"主数字块 -->
+  <g filter="url(#shadow)">
+    <rect x="66" y="66" width="380" height="230" rx="25" ry="25" fill="url(#gradient)"/>
+  </g>
+  
+  <!-- 2048文字 -->
+  <text x="256" y="208" font-family="Arial, Helvetica, sans-serif" font-size="120" 
+        font-weight="bold" fill="white" text-anchor="middle">2048</text>
+  
+  <!-- 装饰性数字方块，模拟游戏中的其他数字砖块 -->
+  <g>
+    <!-- 2方块 -->
+    <rect x="66" y="316" width="115" height="115" rx="15" ry="15" fill="#eee4da"/>
+    <text x="123" y="390" font-family="Arial, Helvetica, sans-serif" font-size="60" 
+          font-weight="bold" fill="#776e65" text-anchor="middle">2</text>
+          
+    <!-- 4方块 -->
+    <rect x="198" y="316" width="115" height="115" rx="15" ry="15" fill="#ede0c8"/>
+    <text x="255" y="390" font-family="Arial, Helvetica, sans-serif" font-size="60" 
+          font-weight="bold" fill="#776e65" text-anchor="middle">4</text>
+          
+    <!-- 8方块 -->
+    <rect x="331" y="316" width="115" height="115" rx="15" ry="15" fill="#f2b179"/>
+    <text x="388" y="390" font-family="Arial, Helvetica, sans-serif" font-size="60" 
+          font-weight="bold" fill="white" text-anchor="middle">8</text>
+  </g>
+  
+  <!-- 添加轻微的光泽效果 -->
+  <rect x="66" y="66" width="380" height="10" rx="5" ry="5" fill="white" opacity="0.2"/>
+  <rect x="66" y="66" width="10" height="230" rx="5" ry="5" fill="white" opacity="0.2"/>
+</svg>

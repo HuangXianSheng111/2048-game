@@ -144,34 +144,35 @@ class Game2048 {
 
     moveLeft() {
         return this.moveInRows(
-            row => row,              // 不需要预处理
-            result => result         // 结果无需反转
+            row => row,              // 不需要预处理 
+            false                    // 不需要反转结果
         );
     }
 
     moveRight() {
         return this.moveInRows(
-            row => row.reverse(),    // 先反转行，使右侧成为操作方向
-            result => result.reverse() // 操作完成后再反转回来
+            row => row.reverse(),    // 先反转行
+            true                     // 需要反转结果
         );
     }
 
     moveUp() {
         return this.moveInColumns(
             col => col,              // 不需要预处理
-            result => result         // 结果无需反转
+            false                    // 不需要反转结果
         );
     }
 
     moveDown() {
         return this.moveInColumns(
-            col => col.reverse(),    // 先反转列，使下侧成为操作方向
-            result => result.reverse() // 操作完成后再反转回来
+            col => col.reverse(),    // 先反转列
+            true                     // 需要反转结果
         );
     }
 
-    moveInRows(preTransform, postTransform) {
+    moveInRows(preTransform, needsReverse) {
         let moved = false;
+        this.isAnimating = true;  // 立即设置动画状态以防止多次操作
         const allAnimationPromises = [];
         
         for (let i = 0; i < 4; i++) {
@@ -184,8 +185,8 @@ class Game2048 {
             // 执行标准的左移动（向操作方向移动）操作
             const processedRow = this.mergeAndCompress(transformedRow);
             
-            // 应用方向后处理变换（例如右移时再反转回来）
-            const finalRow = postTransform(processedRow);
+            // 如果需要，反向变换回原始方向（右移时反转回来）
+            const finalRow = needsReverse ? processedRow.reverse() : processedRow;
             
             // 检查是否有变化
             const hasChanged = !this.arraysEqual(originalRow, finalRow);
@@ -254,7 +255,6 @@ class Game2048 {
         
         // 等待所有动画完成
         if (allAnimationPromises.length > 0) {
-            this.isAnimating = true;
             Promise.all(allAnimationPromises).then(() => {
                 this.isAnimating = false;
             });
@@ -265,8 +265,9 @@ class Game2048 {
         return moved;
     }
 
-    moveInColumns(preTransform, postTransform) {
+    moveInColumns(preTransform, needsReverse) {
         let moved = false;
+        this.isAnimating = true;  // 立即设置动画状态以防止多次操作
         const allAnimationPromises = [];
         
         for (let j = 0; j < 4; j++) {
@@ -279,8 +280,8 @@ class Game2048 {
             // 执行标准的上移动（向操作方向移动）操作
             const processedCol = this.mergeAndCompress(transformedCol);
             
-            // 应用方向后处理变换（例如下移时再反转回来）
-            const finalCol = postTransform(processedCol);
+            // 如果需要，反向变换回原始方向（下移时反转回来）
+            const finalCol = needsReverse ? processedCol.reverse() : processedCol;
             
             // 检查是否有变化
             const hasChanged = !this.arraysEqual(originalCol, finalCol);
@@ -349,7 +350,6 @@ class Game2048 {
         
         // 等待所有动画完成
         if (allAnimationPromises.length > 0) {
-            this.isAnimating = true;
             Promise.all(allAnimationPromises).then(() => {
                 this.isAnimating = false;
             });

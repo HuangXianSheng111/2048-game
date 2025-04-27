@@ -119,27 +119,51 @@ class Game2048 {
                 this.isFirstGame = false;
             }
 
-            this.addNewTile();
-            this.updateView();
-            
-            if (this.score > this.bestScore) {
-                this.bestScore = this.score;
-                localStorage.setItem('bestScore', this.bestScore);
-                this.updateBestScore();
-                const bestScoreContainer = document.querySelector('.best-score');
-                bestScoreContainer.style.animation = 'pop 0.3s ease';
-                setTimeout(() => bestScoreContainer.style.animation = '', 300);
-            }
+            // 等待动画完成后再添加新的瓦片
+            // 这里使用setTimeout确保在所有动画完成后执行
+            setTimeout(() => {
+                this.addNewTile();
+                
+                // 确保在添加新瓦片后强制更新视图
+                setTimeout(() => {
+                    // 强制更新视图（即使有动画正在进行）
+                    this.forceUpdateView();
+                    
+                    // 检查游戏状态
+                    if (this.score > this.bestScore) {
+                        this.bestScore = this.score;
+                        localStorage.setItem('bestScore', this.bestScore);
+                        this.updateBestScore();
+                        const bestScoreContainer = document.querySelector('.best-score');
+                        bestScoreContainer.style.animation = 'pop 0.3s ease';
+                        setTimeout(() => bestScoreContainer.style.animation = '', 300);
+                    }
 
-            if (this.isGameOver()) {
-                this.showGameOver();
-            } else if (this.hasWon()) {
-                this.showWinMessage();
-            }
+                    if (this.isGameOver()) {
+                        this.showGameOver();
+                    } else if (this.hasWon()) {
+                        this.showWinMessage();
+                    }
+                }, 50);
+            }, 100);
         } else {
             // 如果没有移动，显示无效移动指示
             this.showInvalidMove(direction);
         }
+    }
+    
+    // 添加一个强制更新视图的方法，无视动画状态
+    forceUpdateView() {
+        const cells = document.querySelectorAll('.grid-cell');
+        cells.forEach((cell, index) => {
+            cell.className = 'grid-cell';
+            cell.textContent = '';
+            const value = this.grid[index];
+            if (value !== 0) {
+                cell.textContent = value;
+                cell.classList.add(`tile-${value}`);
+            }
+        });
     }
 
     moveLeft() {

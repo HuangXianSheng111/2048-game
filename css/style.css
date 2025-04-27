@@ -301,6 +301,32 @@ h1::after {
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
+#soundToggle {
+    background: linear-gradient(135deg, #bbada0 0%, #a99e93 100%);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    -webkit-tap-highlight-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#soundToggle.sound-off {
+    background: linear-gradient(135deg, #d8d4d0 0%, #c9c4bf 100%);
+}
+
+#soundToggle:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+}
+
 .game-over {
     position: absolute;
     top: 0;

@@ -143,22 +143,34 @@ class Game2048 {
     }
 
     moveLeft() {
-        return this.moveInRows((row) => row);
+        return this.moveInRows(
+            row => row,              // 不需要预处理
+            result => result         // 结果无需反转
+        );
     }
 
     moveRight() {
-        return this.moveInRows((row) => row.reverse());
+        return this.moveInRows(
+            row => row.reverse(),    // 先反转行，使右侧成为操作方向
+            result => result.reverse() // 操作完成后再反转回来
+        );
     }
 
     moveUp() {
-        return this.moveInColumns((col) => col);
+        return this.moveInColumns(
+            col => col,              // 不需要预处理
+            result => result         // 结果无需反转
+        );
     }
 
     moveDown() {
-        return this.moveInColumns((col) => col.reverse());
+        return this.moveInColumns(
+            col => col.reverse(),    // 先反转列，使下侧成为操作方向
+            result => result.reverse() // 操作完成后再反转回来
+        );
     }
 
-    moveInRows(transform) {
+    moveInRows(preTransform, postTransform) {
         let moved = false;
         const allAnimationPromises = [];
         
@@ -166,16 +178,14 @@ class Game2048 {
             const row = this.getRow(i);
             const originalRow = [...row];
             
-            // 应用方向变换（用于右移时反转数组）
-            const transformedRow = transform([...row]);
+            // 应用方向预处理变换（例如右移时先反转）
+            const transformedRow = preTransform([...row]);
             
-            // 执行移动和合并操作
-            const mergedRow = this.mergeAndCompress(transformedRow);
+            // 执行标准的左移动（向操作方向移动）操作
+            const processedRow = this.mergeAndCompress(transformedRow);
             
-            // 反向变换回原始方向
-            const finalRow = transform === (row => row.reverse()) 
-                ? mergedRow.reverse() 
-                : mergedRow;
+            // 应用方向后处理变换（例如右移时再反转回来）
+            const finalRow = postTransform(processedRow);
             
             // 检查是否有变化
             const hasChanged = !this.arraysEqual(originalRow, finalRow);
@@ -244,6 +254,7 @@ class Game2048 {
         
         // 等待所有动画完成
         if (allAnimationPromises.length > 0) {
+            this.isAnimating = true;
             Promise.all(allAnimationPromises).then(() => {
                 this.isAnimating = false;
             });
@@ -254,7 +265,7 @@ class Game2048 {
         return moved;
     }
 
-    moveInColumns(transform) {
+    moveInColumns(preTransform, postTransform) {
         let moved = false;
         const allAnimationPromises = [];
         
@@ -262,16 +273,14 @@ class Game2048 {
             const col = this.getColumn(j);
             const originalCol = [...col];
             
-            // 应用方向变换（用于下移时反转数组）
-            const transformedCol = transform([...col]);
+            // 应用方向预处理变换（例如下移时先反转）
+            const transformedCol = preTransform([...col]);
             
-            // 执行移动和合并操作
-            const mergedCol = this.mergeAndCompress(transformedCol);
+            // 执行标准的上移动（向操作方向移动）操作
+            const processedCol = this.mergeAndCompress(transformedCol);
             
-            // 反向变换回原始方向
-            const finalCol = transform === (col => col.reverse()) 
-                ? mergedCol.reverse() 
-                : mergedCol;
+            // 应用方向后处理变换（例如下移时再反转回来）
+            const finalCol = postTransform(processedCol);
             
             // 检查是否有变化
             const hasChanged = !this.arraysEqual(originalCol, finalCol);
@@ -340,6 +349,7 @@ class Game2048 {
         
         // 等待所有动画完成
         if (allAnimationPromises.length > 0) {
+            this.isAnimating = true;
             Promise.all(allAnimationPromises).then(() => {
                 this.isAnimating = false;
             });

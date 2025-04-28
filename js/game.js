@@ -750,7 +750,8 @@ class Game2048 {
 
         if (emptyCells.length > 0) {
             const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-            this.grid[randomCell] = Math.random() < 0.9 ? 2 : 4;
+            // 确保新方块只有2，去除随机生成4的可能性
+            this.grid[randomCell] = 2;
             setTimeout(() => {
                 const cells = document.querySelectorAll('.grid-cell');
                 cells[randomCell].classList.add('new');
@@ -899,6 +900,9 @@ class Game2048 {
         this.isAnimating = true;  // 立即设置动画状态以防止多次操作
         const allAnimationPromises = [];
 
+        // 确定滑动方向的CSS类名（左移或右移）
+        const slideDirection = needsReverse ? 'slide-right' : 'slide-left';
+
         for (let i = 0; i < 4; i++) {
             const row = this.getRow(i);
             const originalRow = [...row];
@@ -960,18 +964,21 @@ class Game2048 {
 
                         allAnimationPromises.push(animPromise);
                     }
-                    // 为移动添加滑动动画
+                    // 为移动添加方向性滑动动画
                     else if (newValue !== 0) {
                         const animPromise = new Promise(resolve => {
                             setTimeout(() => {
                                 const cell = cells[cellIndex];
-                                cell.classList.add('slide');
-
+                                
+                                // 使用特定方向的滑动动画类
+                                cell.classList.add(slideDirection);
+                                
+                                // 创建轨迹效果（动画结束后自动消失）
                                 setTimeout(() => {
-                                    cell.classList.remove('slide');
+                                    cell.classList.remove(slideDirection);
                                     resolve();
-                                }, 200);
-                            }, 50);
+                                }, 600); // 将动画时间调整为600ms，与CSS动画持续时间一致
+                            }, 20); // 减少初始延迟，使反应更灵敏
                         });
 
                         allAnimationPromises.push(animPromise);
@@ -996,6 +1003,9 @@ class Game2048 {
         let moved = false;
         this.isAnimating = true;  // 立即设置动画状态以防止多次操作
         const allAnimationPromises = [];
+
+        // 确定滑动方向的CSS类名（上移或下移）
+        const slideDirection = needsReverse ? 'slide-down' : 'slide-up';
 
         for (let j = 0; j < 4; j++) {
             const col = this.getColumn(j);
@@ -1058,18 +1068,21 @@ class Game2048 {
 
                         allAnimationPromises.push(animPromise);
                     }
-                    // 为移动添加滑动动画
+                    // 为移动添加方向性滑动动画
                     else if (newValue !== 0) {
                         const animPromise = new Promise(resolve => {
                             setTimeout(() => {
                                 const cell = cells[cellIndex];
-                                cell.classList.add('slide');
-
+                                
+                                // 使用特定方向的滑动动画类
+                                cell.classList.add(slideDirection);
+                                
+                                // 创建轨迹效果（动画结束后自动消失）
                                 setTimeout(() => {
-                                    cell.classList.remove('slide');
+                                    cell.classList.remove(slideDirection);
                                     resolve();
-                                }, 200);
-                            }, 50);
+                                }, 600); // 将动画时间调整为600ms，与CSS动画持续时间一致
+                            }, 20); // 减少初始延迟，使反应更灵敏
                         });
 
                         allAnimationPromises.push(animPromise);

@@ -165,12 +165,100 @@ h1::after {
     animation: slideEffect 0.2s ease;
 }
 
+/* 方块滑动轨迹效果 */
+.grid-cell.slide-left,
+.grid-cell.slide-right,
+.grid-cell.slide-up,
+.grid-cell.slide-down {
+    position: relative;
+}
+
+.grid-cell.slide-left::after,
+.grid-cell.slide-right::after,
+.grid-cell.slide-up::after,
+.grid-cell.slide-down::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    opacity: 0.3;
+    z-index: -1;
+    background: inherit;
+    animation: trailFade 0.6s ease-out;
+}
+
+.grid-cell.slide-left {
+    animation: slideLeft 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.grid-cell.slide-right {
+    animation: slideRight 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.grid-cell.slide-up {
+    animation: slideUp 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.grid-cell.slide-down {
+    animation: slideDown 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+@keyframes trailFade {
+    0% {
+        opacity: 0.4;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+}
+
 @keyframes slideEffect {
     0% {
         transform: scale(1.05);
     }
     100% {
         transform: scale(1);
+    }
+}
+
+@keyframes slideLeft {
+    0% {
+        transform: translateX(calc(100% + 12px));
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideRight {
+    0% {
+        transform: translateX(calc(-100% - 12px));
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideUp {
+    0% {
+        transform: translateY(calc(100% + 12px));
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideDown {
+    0% {
+        transform: translateY(calc(-100% - 12px));
+    }
+    100% {
+        transform: translateY(0);
     }
 }
 

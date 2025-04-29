@@ -14,8 +14,6 @@ class Game2048 {
         // 音效系统初始化
         this.soundEnabled = localStorage.getItem('soundEnabled') !== 'false'; // 默认开启音效
         this.audioContext = null;
-        this.backgroundMusic = null;
-        this.isMusicPlaying = false;
         this.initAudioContext();
 
         this.init();
@@ -27,11 +25,6 @@ class Game2048 {
 
         // 更新音效按钮状态
         this.updateSoundButtonState();
-
-        // 自动开始背景音乐（如果允许）
-        if (this.soundEnabled) {
-            setTimeout(() => this.startBackgroundMusic(), 1000);
-        }
     }
 
     // 初始化音频上下文
@@ -41,467 +34,11 @@ class Game2048 {
             window.AudioContext = window.AudioContext || window.webkitAudioContext;
             this.audioContext = new AudioContext();
 
-            // 创建背景音乐
-            this.createBackgroundMusic();
-
             console.log('音频系统初始化成功');
         } catch (e) {
             console.warn('该浏览器不支持Web Audio API:', e);
             this.soundEnabled = false;
         }
-    }
-
-    // 创建背景音乐
-    createBackgroundMusic() {
-        if (!this.audioContext) return;
-        
-        try {
-            // 创建主背景音乐的合成器
-            this.backgroundMusic = {
-                isPlaying: false,
-                oscillators: [],
-                gainNodes: [],
-                lfo: null,
-                masterGain: this.audioContext.createGain(),
-                // 快乐活泼的C大调旋律音符
-                notes: [
-                    { frequency: 523.25, duration: 1.5, gain: 0.03 },  // C5
-                    { frequency: 587.33, duration: 1.5, gain: 0.03 },  // D5
-                    { frequency: 659.25, duration: 1.5, gain: 0.03 },  // E5
-                    { frequency: 783.99, duration: 1.5, gain: 0.025 }  // G5
-                ],
-                // 活泼的琶音旋律模式
-                arpeggio: [
-                    { frequency: 523.25, duration: 0.25, type: 'triangle' },  // C5
-                    { frequency: 659.25, duration: 0.25, type: 'triangle' },  // E5
-                    { frequency: 783.99, duration: 0.25, type: 'triangle' },  // G5
-                    { frequency: 1046.50, duration: 0.25, type: 'triangle' }, // C6
-                    { frequency: 783.99, duration: 0.25, type: 'triangle' },  // G5
-                    { frequency: 659.25, duration: 0.25, type: 'triangle' }   // E5
-                ],
-                // 第二套更活泼的琶音旋律，用于交替
-                arpeggio2: [
-                    { frequency: 659.25, duration: 0.2, type: 'square' },   // E5
-                    { frequency: 783.99, duration: 0.2, type: 'square' },   // G5
-                    { frequency: 880.00, duration: 0.2, type: 'square' },   // A5
-                    { frequency: 1046.50, duration: 0.2, type: 'square' },  // C6
-                    { frequency: 880.00, duration: 0.2, type: 'square' },   // A5
-                    { frequency: 783.99, duration: 0.2, type: 'square' }    // G5
-                ],
-                // 鼓点节奏，增加音乐动感
-                rhythm: [
-                    { frequency: 120, duration: 0.1, gain: 0.15, type: 'sine' },     // 低音鼓
-                    { frequency: 0, duration: 0.3, gain: 0 },                        // 休止
-                    { frequency: 300, duration: 0.05, gain: 0.05, type: 'square' },  // 嗒
-                    { frequency: 0, duration: 0.25, gain: 0 },                       // 休止
-                    { frequency: 120, duration: 0.1, gain: 0.15, type: 'sine' },     // 低音鼓
-                    { frequency: 300, duration: 0.05, gain: 0.05, type: 'square' }   // 嗒
-                ],
-                currentArpeggio: 0,  // 用于在两种琶音风格间切换
-                melodyVoices: []     // 存储额外的旋律声音
-            };
-            
-            // 设置主音量
-            this.backgroundMusic.masterGain.gain.value = 0.2;
-            this.backgroundMusic.masterGain.connect(this.audioContext.destination);
-            
-            // 创建LFO（低频振荡器）用于给背景音乐添加波动感
-            this.backgroundMusic.lfo = this.audioContext.createOscillator();
-            const lfoGain = this.audioContext.createGain();
-            this.backgroundMusic.lfo.frequency.value = 0.3; // 振荡频率
-            this.backgroundMusic.lfo.type = 'sine';
-            lfoGain.gain.value = 0.1; // 振荡深度
-            this.backgroundMusic.lfo.connect(lfoGain);
-            lfoGain.connect(this.backgroundMusic.masterGain.gain);
-            
-        } catch (e) {
-            console.warn('创建背景音乐失败:', e);
-        }
-    }
-    
-    // 开始播放背景音乐
-    startBackgroundMusic() {
-        if (!this.soundEnabled || !this.audioContext || !this.backgroundMusic || this.backgroundMusic.isPlaying) return;
-        
-        try {
-            // 如果AudioContext被暂停，恢复它
-            if (this.audioContext.state === 'suspended') {
-                this.audioContext.resume();
-            }
-            
-            this.backgroundMusic.isPlaying = true;
-            
-            // 重置所有当前的合成器
-            this.stopBackgroundMusic(false);
-            
-            // 启动LFO
-            this.backgroundMusic.lfo.start();
-            
-            // 创建和播放持续的和弦背景
-            this.playChordBackground();
-            
-            // 开始播放琶音旋律
-            this.playArpeggioMelody();
-            
-            // 播放节奏鼓点增加动感
-            this.playRhythm();
-            
-            // 每8秒随机播放一个动感旋律片段
-            this.startMelodySegments();
-            
-            // 定期添加变化的音色
-            setInterval(() => {
-                if (this.backgroundMusic.isPlaying) {
-                    this.addAccent();
-                }
-            }, 5000);
-            
-            // 定期切换琶音模式，增加变化
-            setInterval(() => {
-                if (this.backgroundMusic.isPlaying) {
-                    this.backgroundMusic.currentArpeggio = 1 - this.backgroundMusic.currentArpeggio;
-                }
-            }, 10000);
-            
-            this.isMusicPlaying = true;
-        } catch (e) {
-            console.warn('启动背景音乐失败:', e);
-            this.backgroundMusic.isPlaying = false;
-        }
-    }
-
-    // 停止背景音乐
-    stopBackgroundMusic(fullStop = true) {
-        if (!this.backgroundMusic) return;
-        
-        try {
-            // 停止所有现有的振荡器
-            if (this.backgroundMusic.oscillators.length > 0) {
-                this.backgroundMusic.oscillators.forEach(osc => {
-                    try {
-                        osc.stop();
-                        osc.disconnect();
-                    } catch (e) {
-                        // 忽略已经停止的振荡器
-                    }
-                });
-            }
-            
-            // 清空振荡器和增益节点数组
-            this.backgroundMusic.oscillators = [];
-            this.backgroundMusic.gainNodes = [];
-            
-            // 停止所有旋律声音
-            if (this.backgroundMusic.melodyVoices.length > 0) {
-                this.backgroundMusic.melodyVoices.forEach(voice => {
-                    try {
-                        if (voice.oscillator) {
-                            voice.oscillator.stop();
-                            voice.oscillator.disconnect();
-                        }
-                        if (voice.gainNode) {
-                            voice.gainNode.disconnect();
-                        }
-                    } catch (e) {
-                        // 忽略已经停止的振荡器
-                    }
-                });
-                this.backgroundMusic.melodyVoices = [];
-            }
-            
-            // 如果是完全停止，也停止LFO
-            if (fullStop && this.backgroundMusic.lfo) {
-                try {
-                    this.backgroundMusic.lfo.stop();
-                    this.backgroundMusic.lfo.disconnect();
-                    // 重新创建LFO以备后用
-                    this.backgroundMusic.lfo = this.audioContext.createOscillator();
-                    const lfoGain = this.audioContext.createGain();
-                    this.backgroundMusic.lfo.frequency.value = 0.3;
-                    this.backgroundMusic.lfo.type = 'sine';
-                    lfoGain.gain.value = 0.1;
-                    this.backgroundMusic.lfo.connect(lfoGain);
-                    lfoGain.connect(this.backgroundMusic.masterGain.gain);
-                } catch (e) {
-                    // 忽略已经停止的LFO
-                }
-            }
-            
-            if (fullStop) {
-                this.backgroundMusic.isPlaying = false;
-                this.isMusicPlaying = false;
-            }
-        } catch (e) {
-            console.warn('停止背景音乐失败:', e);
-        }
-    }
-    
-    // 播放持续的和弦背景
-    playChordBackground() {
-        if (!this.backgroundMusic.isPlaying) return;
-        
-        this.backgroundMusic.notes.forEach(note => {
-            const oscillator = this.audioContext.createOscillator();
-            const gainNode = this.audioContext.createGain();
-            
-            // 设置音色为明亮的正弦波
-            oscillator.type = 'sine';
-            oscillator.frequency.value = note.frequency;
-            
-            // 应用轻微的颤音效果
-            const vibratoDepth = 3;
-            const vibratoSpeed = 6;
-            const vibrato = this.audioContext.createOscillator();
-            const vibratoGain = this.audioContext.createGain();
-            
-            vibrato.type = 'sine';
-            vibrato.frequency.value = vibratoSpeed;
-            vibratoGain.gain.value = vibratoDepth;
-            
-            vibrato.connect(vibratoGain);
-            vibratoGain.connect(oscillator.frequency);
-            vibrato.start();
-            
-            // 设置音量包络为缓慢淡入
-            gainNode.gain.value = 0;
-            gainNode.gain.setTargetAtTime(note.gain, this.audioContext.currentTime, 1.5);
-            
-            // 连接节点
-            oscillator.connect(gainNode);
-            gainNode.connect(this.backgroundMusic.masterGain);
-            
-            // 存储以便之后可以停止
-            this.backgroundMusic.oscillators.push(oscillator);
-            this.backgroundMusic.gainNodes.push(gainNode);
-            this.backgroundMusic.oscillators.push(vibrato);
-            
-            // 开始播放
-            oscillator.start();
-        });
-    }
-    
-    // 播放琶音旋律
-    playArpeggioMelody() {
-        if (!this.backgroundMusic.isPlaying) return;
-        
-        const playNextNote = () => {
-            if (!this.backgroundMusic.isPlaying) return;
-            
-            // 根据当前选择的琶音模式选择音符集
-            const arpeggioSet = this.backgroundMusic.currentArpeggio === 0 ? 
-                                this.backgroundMusic.arpeggio : 
-                                this.backgroundMusic.arpeggio2;
-            
-            // 随机选择一个音符
-            const index = Math.floor(Math.random() * arpeggioSet.length);
-            const note = arpeggioSet[index];
-            
-            const oscillator = this.audioContext.createOscillator();
-            const gainNode = this.audioContext.createGain();
-            
-            // 使用指定的音色，默认为triangle
-            oscillator.type = note.type || 'triangle';
-            oscillator.frequency.value = note.frequency;
-            
-            // 创建更加活泼的音量包络
-            gainNode.gain.value = 0;
-            gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.1, this.audioContext.currentTime + 0.05);
-            gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime + note.duration * 0.7);
-            gainNode.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + note.duration);
-            
-            // 添加音色滤波器，增强音色
-            const filter = this.audioContext.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 2000;
-            filter.Q.value = 5;
-            
-            // 连接节点链
-            oscillator.connect(filter);
-            filter.connect(gainNode);
-            gainNode.connect(this.backgroundMusic.masterGain);
-            
-            // 开始播放
-            oscillator.start();
-            oscillator.stop(this.audioContext.currentTime + note.duration);
-            
-            // 计划下一个音符
-            setTimeout(() => {
-                playNextNote();
-            }, note.duration * 1000 * 0.8); // 稍微重叠一点，使旋律更连贯
-        };
-        
-        // 开始播放琶音
-        playNextNote();
-    }
-    
-    // 播放节奏鼓点
-    playRhythm() {
-        if (!this.backgroundMusic.isPlaying) return;
-        
-        let currentIndex = 0;
-        
-        const playNextBeat = () => {
-            if (!this.backgroundMusic.isPlaying) return;
-            
-            const beat = this.backgroundMusic.rhythm[currentIndex];
-            currentIndex = (currentIndex + 1) % this.backgroundMusic.rhythm.length;
-            
-            if (beat.gain > 0) {  // 只有当增益大于0才播放声音
-                const oscillator = this.audioContext.createOscillator();
-                const gainNode = this.audioContext.createGain();
-                
-                oscillator.type = beat.type || 'sine';
-                oscillator.frequency.value = beat.frequency;
-                
-                gainNode.gain.setValueAtTime(beat.gain, this.audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(
-                    0.001, this.audioContext.currentTime + beat.duration
-                );
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(this.backgroundMusic.masterGain);
-                
-                oscillator.start();
-                oscillator.stop(this.audioContext.currentTime + beat.duration);
-            }
-            
-            // 安排下一个节拍
-            setTimeout(() => {
-                playNextBeat();
-            }, beat.duration * 1000);
-        };
-        
-        // 开始播放节奏
-        playNextBeat();
-    }
-    
-    // 开始播放随机旋律片段
-    startMelodySegments() {
-        if (!this.backgroundMusic.isPlaying) return;
-        
-        // 定义几个活泼的旋律片段
-        const melodyPatterns = [
-            // 欢快上升音阶
-            [
-                { note: 523.25, duration: 0.15 }, // C5
-                { note: 587.33, duration: 0.15 }, // D5
-                { note: 659.25, duration: 0.15 }, // E5
-                { note: 698.46, duration: 0.15 }, // F5
-                { note: 783.99, duration: 0.15 }, // G5
-                { note: 880.00, duration: 0.15 }, // A5
-                { note: 987.77, duration: 0.15 }, // B5
-                { note: 1046.50, duration: 0.2 }  // C6
-            ],
-            // 活泼的短句
-            [
-                { note: 659.25, duration: 0.2 },   // E5
-                { note: 659.25, duration: 0.1 },   // E5
-                { note: 783.99, duration: 0.2 },   // G5
-                { note: 783.99, duration: 0.1 },   // G5
-                { note: 880.00, duration: 0.25 },  // A5
-                { note: 783.99, duration: 0.15 }   // G5
-            ],
-            // 俏皮的下降旋律
-            [
-                { note: 987.77, duration: 0.15 },  // B5
-                { note: 783.99, duration: 0.15 },  // G5
-                { note: 880.00, duration: 0.15 },  // A5
-                { note: 659.25, duration: 0.15 },  // E5
-                { note: 698.46, duration: 0.15 },  // F5
-                { note: 523.25, duration: 0.25 }   // C5
-            ]
-        ];
-        
-        // 定期播放随机旋律片段
-        const playRandomMelody = () => {
-            if (!this.backgroundMusic.isPlaying) return;
-            
-            // 随机选择一个旋律片段
-            const patternIndex = Math.floor(Math.random() * melodyPatterns.length);
-            const pattern = melodyPatterns[patternIndex];
-            
-            // 用适合当前游戏分数的音色
-            const oscillatorTypes = ['triangle', 'square', 'sine'];
-            const typeIndex = Math.min(
-                Math.floor(this.score / 500), 
-                oscillatorTypes.length - 1
-            );
-            
-            let startTime = this.audioContext.currentTime;
-            let delay = 0;
-            
-            // 播放选中的旋律片段
-            pattern.forEach(note => {
-                const oscillator = this.audioContext.createOscillator();
-                const gainNode = this.audioContext.createGain();
-                
-                oscillator.type = oscillatorTypes[typeIndex];
-                oscillator.frequency.value = note.note;
-                
-                // 设置包络
-                gainNode.gain.setValueAtTime(0, startTime + delay);
-                gainNode.gain.linearRampToValueAtTime(0.12, startTime + delay + 0.05);
-                gainNode.gain.setValueAtTime(0.12, startTime + delay + note.duration - 0.05);
-                gainNode.gain.linearRampToValueAtTime(0, startTime + delay + note.duration);
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(this.backgroundMusic.masterGain);
-                
-                oscillator.start(startTime + delay);
-                oscillator.stop(startTime + delay + note.duration);
-                
-                // 保存引用以便可以停止
-                this.backgroundMusic.melodyVoices.push({
-                    oscillator: oscillator,
-                    gainNode: gainNode
-                });
-                
-                delay += note.duration;
-            });
-            
-            // 安排下一个随机旋律片段
-            setTimeout(() => {
-                playRandomMelody();
-            }, (delay * 1000) + Math.random() * 8000 + 4000); // 4-12秒后播放下一个片段
-        };
-        
-        // 开始播放随机旋律片段
-        setTimeout(() => {
-            playRandomMelody();
-        }, 2000); // 2秒后开始第一个片段
-    }
-    
-    // 添加音乐的变化音色（点缀）
-    addAccent() {
-        if (!this.backgroundMusic.isPlaying) return;
-        
-        // 根据当前分数选择不同的音调模式
-        const baseScoreFreq = 440 + Math.min(this.score / 1000, 1) * 220;
-        
-        // 随机选择音符
-        const possibleNotes = [baseScoreFreq, baseScoreFreq * 5/4, baseScoreFreq * 3/2, baseScoreFreq * 2];
-        const noteIndex = Math.floor(Math.random() * possibleNotes.length);
-        const frequency = possibleNotes[noteIndex];
-        
-        const oscillator = this.audioContext.createOscillator();
-        const gainNode = this.audioContext.createGain();
-        
-        // 根据游戏进度选择不同的音色
-        oscillator.type = this.score > 2000 ? 'square' : 'sine';
-        oscillator.frequency.value = frequency;
-        
-        // 创建更活泼的淡入淡出包络
-        gainNode.gain.value = 0;
-        gainNode.gain.setTargetAtTime(0.08, this.audioContext.currentTime, 0.3);
-        gainNode.gain.setTargetAtTime(0.0001, this.audioContext.currentTime + 1.0, 0.3);
-        
-        // 连接并播放
-        oscillator.connect(gainNode);
-        gainNode.connect(this.backgroundMusic.masterGain);
-        
-        oscillator.start();
-        oscillator.stop(this.audioContext.currentTime + 2.0);
     }
 
     // 更新音效按钮状态
@@ -522,88 +59,371 @@ class Game2048 {
         }
     }
 
-    // 创建并播放移动音效
+    // 创建并播放移动音效 - 优化为更清脆和高级的效果
     playMoveSound() {
         if (!this.soundEnabled || !this.audioContext) return;
 
         try {
-            const oscillator = this.audioContext.createOscillator();
-            const gainNode = this.audioContext.createGain();
+            // 创建更复杂的多层音色以获得高级质感
+            const percussive = this.audioContext.createOscillator(); // 打击感音色
+            const slide = this.audioContext.createOscillator(); // 滑动音色
+            const accent = this.audioContext.createOscillator(); // 强调音
+            
+            const percussiveGain = this.audioContext.createGain();
+            const slideGain = this.audioContext.createGain();
+            const accentGain = this.audioContext.createGain();
+            
+            // 创建立体声声像控制器
+            const stereoPanner = this.audioContext.createStereoPanner();
+            stereoPanner.pan.value = (Math.random() * 0.5) - 0.25; // 轻微随机立体声定位
+            
+            // 创建动态压缩器增强质感
+            const compressor = this.audioContext.createDynamicsCompressor();
+            compressor.threshold.value = -24;
+            compressor.knee.value = 30;
+            compressor.ratio.value = 12;
+            compressor.attack.value = 0.003;
+            compressor.release.value = 0.25;
+            
+            // 创建高通滤波器增强清脆感
+            const highpassFilter = this.audioContext.createBiquadFilter();
+            highpassFilter.type = 'highpass';
+            highpassFilter.frequency.value = 1200;
+            highpassFilter.Q.value = 0.9;
+            
+            // 创建低通滤波器控制音色
+            const lowpassFilter = this.audioContext.createBiquadFilter();
+            lowpassFilter.type = 'lowpass';
+            lowpassFilter.frequency.value = 8000;
+            lowpassFilter.Q.value = 0.5;
 
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(220, this.audioContext.currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(
-                0, this.audioContext.currentTime + 0.2
+            // 打击感音色 - 使用noise冲击声增加清脆质感
+            percussive.type = 'triangle';
+            percussive.frequency.setValueAtTime(1800, this.audioContext.currentTime);
+            percussive.frequency.exponentialRampToValueAtTime(
+                600, this.audioContext.currentTime + 0.08
             );
 
-            gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(
-                0.01, this.audioContext.currentTime + 0.2
+            // 滑动音色 - 使用正弦波营造滑动感
+            slide.type = 'sine';
+            slide.frequency.setValueAtTime(420, this.audioContext.currentTime);
+            slide.frequency.exponentialRampToValueAtTime(
+                220, this.audioContext.currentTime + 0.12
             );
 
-            oscillator.connect(gainNode);
-            gainNode.connect(this.audioContext.destination);
+            // 强调音 - 短促高频声增加锐度
+            accent.type = 'sawtooth';
+            accent.frequency.setValueAtTime(2000, this.audioContext.currentTime);
+            accent.frequency.exponentialRampToValueAtTime(
+                1200, this.audioContext.currentTime + 0.05
+            );
 
-            oscillator.start();
-            oscillator.stop(this.audioContext.currentTime + 0.2);
+            // 精确的音量曲线控制（ADSR包络）
+            // 打击感声音：快速起音，快速衰减
+            percussiveGain.gain.setValueAtTime(0, this.audioContext.currentTime);
+            percussiveGain.gain.linearRampToValueAtTime(0.09, this.audioContext.currentTime + 0.01);
+            percussiveGain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.12);
+
+            // 滑动音色：稍慢起音，中等衰减
+            slideGain.gain.setValueAtTime(0, this.audioContext.currentTime);
+            slideGain.gain.linearRampToValueAtTime(0.05, this.audioContext.currentTime + 0.03);
+            slideGain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.15);
+
+            // 强调音：极快起音，非常快衰减
+            accentGain.gain.setValueAtTime(0, this.audioContext.currentTime);
+            accentGain.gain.linearRampToValueAtTime(0.04, this.audioContext.currentTime + 0.005);
+            accentGain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.08);
+
+            // 复杂的音频路由
+            percussive.connect(percussiveGain);
+            slide.connect(slideGain);
+            accent.connect(accentGain);
+            
+            // 主要音色通过高通滤波器增强清脆感
+            percussiveGain.connect(highpassFilter);
+            
+            // 滑动音色直接连到立体声声像
+            slideGain.connect(stereoPanner);
+            
+            // 强调音通过低通滤波器柔化高频
+            accentGain.connect(lowpassFilter);
+            lowpassFilter.connect(stereoPanner);
+            
+            // 所有音色最后通过压缩器融合在一起
+            highpassFilter.connect(compressor);
+            stereoPanner.connect(compressor);
+            
+            // 输出到扬声器
+            compressor.connect(this.audioContext.destination);
+
+            // 开始并停止音效
+            const now = this.audioContext.currentTime;
+            percussive.start(now);
+            slide.start(now + 0.01); // 轻微错开起始时间，增加层次感
+            accent.start(now);
+            
+            percussive.stop(now + 0.15);
+            slide.stop(now + 0.18);
+            accent.stop(now + 0.1);
         } catch (e) {
             console.warn('播放移动音效失败:', e);
         }
     }
 
-    // 创建并播放合并音效
+    // 创建并播放合并音效 - 优化为更清脆和高级的效果
     playMergeSound(value) {
         if (!this.soundEnabled || !this.audioContext) return;
 
         try {
-            // 基于合并的数字值调整音效
+            // 创建复杂的四层音效，构建专业的合成音色
+            const mainOsc = this.audioContext.createOscillator(); // 主音
+            const impactOsc = this.audioContext.createOscillator(); // 冲击音
+            const shimmerOsc = this.audioContext.createOscillator(); // 闪烁高频
+            const reverbOsc = this.audioContext.createOscillator(); // 混响尾音
+            
+            const mainGain = this.audioContext.createGain();
+            const impactGain = this.audioContext.createGain();
+            const shimmerGain = this.audioContext.createGain();
+            const reverbGain = this.audioContext.createGain();
+            
+            // 创建立体声延迟增加空间感
+            const delay = this.audioContext.createDelay(0.5);
+            delay.delayTime.value = 0.03;
+            
+            const delayGain = this.audioContext.createGain();
+            delayGain.gain.value = 0.2;
+            
+            // 为高频部分创建高架滤波器
+            const highShelf = this.audioContext.createBiquadFilter();
+            highShelf.type = 'highshelf';
+            highShelf.frequency.value = 3000;
+            highShelf.gain.value = 6;
+            
+            // 低频增强
+            const lowShelf = this.audioContext.createBiquadFilter();
+            lowShelf.type = 'lowshelf';
+            lowShelf.frequency.value = 300;
+            lowShelf.gain.value = 4;
+            
+            // 波形整形器（失真单元）添加温暖音色
+            const distortion = this.audioContext.createWaveShaper();
+            const makeDistortionCurve = (amount) => {
+                const k = typeof amount === 'number' ? amount : 20;
+                const n_samples = 44100;
+                const curve = new Float32Array(n_samples);
+                const deg = Math.PI / 180;
+                
+                for (let i = 0; i < n_samples; ++i) {
+                    const x = i * 2 / n_samples - 1;
+                    curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+                }
+                return curve;
+            };
+            distortion.curve = makeDistortionCurve(5); // 轻微失真
+            distortion.oversample = '4x';
+            
+            // 根据合并值计算频率（数值越大，音调越高）
             const baseFrequency = 220;
-            // 数字越大，音调越高
-            const frequencyMultiplier = 1 + Math.log2(value) * 0.1;
+            // 使用对数映射使音高变化更加音乐化
+            const frequencyMultiplier = 1 + Math.log10(value) * 0.3;
             const frequency = baseFrequency * frequencyMultiplier;
+            
+            // 计算和弦音符（使用音乐理论增加和谐感）
+            const majorThird = frequency * 1.25; // 大三度
+            const perfectFifth = frequency * 1.5; // 纯五度
+            
+            // 设置所有振荡器
+            // 主音 - 使用三角波提供丰富而清晰的基础
+            mainOsc.type = 'triangle';
+            mainOsc.frequency.value = frequency;
 
-            const oscillator = this.audioContext.createOscillator();
-            const gainNode = this.audioContext.createGain();
+            // 冲击音 - 短促的正弦波提供清脆的初始打击感
+            impactOsc.type = 'sine';
+            impactOsc.frequency.value = frequency * 2;
 
-            oscillator.type = 'triangle';
-            oscillator.frequency.value = frequency;
+            // 闪烁高频 - 使用高八度的正弦波增加亮度
+            shimmerOsc.type = 'sine';
+            shimmerOsc.frequency.value = perfectFifth;
+            
+            // 混响尾音 - 低频的三角波增加温暖感
+            reverbOsc.type = 'triangle';
+            reverbOsc.frequency.value = majorThird;
+            reverbOsc.detune.value = 5; // 轻微失谐增加厚度
 
-            gainNode.gain.setValueAtTime(0.2, this.audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(
-                0.01, this.audioContext.currentTime + 0.3
-            );
+            // 复杂的音量包络设计
+            const now = this.audioContext.currentTime;
+            
+            // 主音 - 中等起音，缓慢衰减
+            mainGain.gain.setValueAtTime(0, now);
+            mainGain.gain.linearRampToValueAtTime(0.18, now + 0.02);
+            mainGain.gain.setValueAtTime(0.18, now + 0.03);
+            mainGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
 
-            oscillator.connect(gainNode);
-            gainNode.connect(this.audioContext.destination);
+            // 冲击音 - 非常快的起音，快速衰减
+            impactGain.gain.setValueAtTime(0, now);
+            impactGain.gain.linearRampToValueAtTime(0.15, now + 0.005);
+            impactGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
 
-            oscillator.start();
-            oscillator.stop(this.audioContext.currentTime + 0.3);
+            // 闪烁高频 - 延迟起音，中等衰减
+            shimmerGain.gain.setValueAtTime(0, now);
+            shimmerGain.gain.linearRampToValueAtTime(0.07, now + 0.03);
+            shimmerGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+            
+            // 混响尾音 - 缓慢起音，缓慢衰减
+            reverbGain.gain.setValueAtTime(0, now);
+            reverbGain.gain.linearRampToValueAtTime(0.08, now + 0.05);
+            reverbGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+            // 复杂的音频路由
+            mainOsc.connect(mainGain);
+            impactOsc.connect(impactGain);
+            shimmerOsc.connect(shimmerGain);
+            reverbOsc.connect(reverbGain);
+            
+            // 主音直接输出并通过延迟线
+            mainGain.connect(lowShelf);
+            mainGain.connect(delay);
+            
+            // 冲击音通过高架滤波器增强清脆度
+            impactGain.connect(highShelf);
+            
+            // 闪烁高频增添明亮感
+            shimmerGain.connect(highShelf);
+            
+            // 混响尾音通过失真单元增加温暖感
+            reverbGain.connect(distortion);
+            
+            // 组合处理后的信号
+            lowShelf.connect(this.audioContext.destination);
+            highShelf.connect(this.audioContext.destination);
+            
+            delay.connect(delayGain);
+            delayGain.connect(this.audioContext.destination);
+            
+            distortion.connect(this.audioContext.destination);
+
+            // 开始并停止所有振荡器
+            mainOsc.start(now);
+            impactOsc.start(now);
+            shimmerOsc.start(now + 0.01); // 轻微延迟增加层次感
+            reverbOsc.start(now + 0.02); // 更多延迟增加空间感
+            
+            mainOsc.stop(now + 0.4);
+            impactOsc.stop(now + 0.2);
+            shimmerOsc.stop(now + 0.3);
+            reverbOsc.stop(now + 0.5);
+            
+            // 添加一个微小的"奖励音"，仅当合并的值很高时
+            if (value >= 64) {
+                setTimeout(() => {
+                    this.playHighValueRewardSound(value);
+                }, 100);
+            }
         } catch (e) {
             console.warn('播放合并音效失败:', e);
         }
     }
+    
+    // 当合并出高数值时播放额外的奖励音效
+    playHighValueRewardSound(value) {
+        if (!this.soundEnabled || !this.audioContext) return;
+        
+        try {
+            const now = this.audioContext.currentTime;
+            const osc1 = this.audioContext.createOscillator();
+            const osc2 = this.audioContext.createOscillator();
+            const gain1 = this.audioContext.createGain();
+            const gain2 = this.audioContext.createGain();
+            
+            // 基于数值计算音阶（越高越明亮）
+            const baseNote = 440 * (1 + Math.log2(value) * 0.1);
+            
+            // 使用音乐上和谐的音程
+            osc1.type = 'sine';
+            osc1.frequency.value = baseNote;
+            
+            osc2.type = 'triangle';
+            osc2.frequency.value = baseNote * 1.5; // 纯五度
+            
+            // 轻柔的音量包络
+            gain1.gain.setValueAtTime(0, now);
+            gain1.gain.linearRampToValueAtTime(0.07, now + 0.05);
+            gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+            
+            gain2.gain.setValueAtTime(0, now);
+            gain2.gain.linearRampToValueAtTime(0.05, now + 0.08);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+            
+            // 连接
+            osc1.connect(gain1);
+            osc2.connect(gain2);
+            gain1.connect(this.audioContext.destination);
+            gain2.connect(this.audioContext.destination);
+            
+            // 开始并停止
+            osc1.start(now);
+            osc2.start(now + 0.05);
+            osc1.stop(now + 0.35);
+            osc2.stop(now + 0.3);
+        } catch (e) {
+            console.warn('播放奖励音效失败:', e);
+        }
+    }
 
-    // 播放新方块出现的音效
+    // 播放新方块出现的音效 - 进一步优化为更清脆的版本
     playNewTileSound() {
         if (!this.soundEnabled || !this.audioContext) return;
 
         try {
+            const now = this.audioContext.currentTime;
+            
+            // 主音振荡器
             const oscillator = this.audioContext.createOscillator();
             const gainNode = this.audioContext.createGain();
-
+            
+            // 添加轻微的"叮"音效果
+            const pingOsc = this.audioContext.createOscillator();
+            const pingGain = this.audioContext.createGain();
+            
+            // 高通滤波器增强清晰度
+            const highpass = this.audioContext.createBiquadFilter();
+            highpass.type = 'highpass';
+            highpass.frequency.value = 2000;
+            highpass.Q.value = 1.5;
+            
+            // 主音使用正弦波
             oscillator.type = 'sine';
-            oscillator.frequency.value = 440;
-
-            gainNode.gain.setValueAtTime(0.05, this.audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(
-                0.01, this.audioContext.currentTime + 0.15
-            );
-
+            oscillator.frequency.value = 1800;
+            oscillator.frequency.exponentialRampToValueAtTime(1400, now + 0.1);
+            
+            // "叮"音使用三角波
+            pingOsc.type = 'triangle';
+            pingOsc.frequency.value = 3200;
+            
+            // 主音的音量包络
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(0.04, now + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            
+            // "叮"音的音量包络 - 非常短促
+            pingGain.gain.setValueAtTime(0, now);
+            pingGain.gain.linearRampToValueAtTime(0.02, now + 0.005);
+            pingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+            
+            // 连接节点
             oscillator.connect(gainNode);
-            gainNode.connect(this.audioContext.destination);
+            pingOsc.connect(pingGain);
+            
+            gainNode.connect(highpass);
+            pingGain.connect(highpass);
+            
+            highpass.connect(this.audioContext.destination);
 
-            oscillator.start();
-            oscillator.stop(this.audioContext.currentTime + 0.15);
+            // 开始并停止音效
+            oscillator.start(now);
+            pingOsc.start(now);
+            oscillator.stop(now + 0.15);
+            pingOsc.stop(now + 0.06);
         } catch (e) {
             console.warn('播放新方块音效失败:', e);
         }
@@ -750,7 +570,7 @@ class Game2048 {
 
         if (emptyCells.length > 0) {
             const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-            // 确保新方块只有2，去除随机生成4的可能性
+            // 修改为只生成数值为2的方块
             this.grid[randomCell] = 2;
             setTimeout(() => {
                 const cells = document.querySelectorAll('.grid-cell');
@@ -969,10 +789,10 @@ class Game2048 {
                         const animPromise = new Promise(resolve => {
                             setTimeout(() => {
                                 const cell = cells[cellIndex];
-                                
+
                                 // 使用特定方向的滑动动画类
                                 cell.classList.add(slideDirection);
-                                
+
                                 // 创建轨迹效果（动画结束后自动消失）
                                 setTimeout(() => {
                                     cell.classList.remove(slideDirection);
@@ -1073,10 +893,10 @@ class Game2048 {
                         const animPromise = new Promise(resolve => {
                             setTimeout(() => {
                                 const cell = cells[cellIndex];
-                                
+
                                 // 使用特定方向的滑动动画类
                                 cell.classList.add(slideDirection);
-                                
+
                                 // 创建轨迹效果（动画结束后自动消失）
                                 setTimeout(() => {
                                     cell.classList.remove(slideDirection);
@@ -1566,9 +1386,6 @@ class Game2048 {
                         this.audioContext.resume();
                     }
                     this.playButtonSound();
-                    this.startBackgroundMusic();
-                } else {
-                    this.stopBackgroundMusic();
                 }
             });
         }
